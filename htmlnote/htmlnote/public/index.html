@@ -405,13 +405,21 @@
     font-size: 13px;
   }
 </style>
+<link rel="stylesheet" href="/design-system.css">
 </head>
 <body>
 
 <!-- Sidebar -->
 <div id="sidebar">
   <div id="sidebar-header">
-    <h1>HTMLNote</h1>
+    <div style="display:flex;align-items:center;gap:8px">
+      <h1>HTMLNote</h1>
+      <div class="appearance-controls" aria-label="Appearance">
+        <button class="header-btn appearance-btn" data-theme-choice="light" aria-label="Light theme" title="Light theme">☀</button>
+        <button class="header-btn appearance-btn" data-theme-choice="dark" aria-label="Dark theme" title="Dark theme">◐</button>
+        <button class="header-btn appearance-btn" id="density-toggle" aria-label="Toggle compact density" title="Toggle density">≡</button>
+      </div>
+    </div>
     <div class="root-path" id="root-path">loading...</div>
   </div>
 
@@ -524,7 +532,7 @@
         const item = document.createElement('div');
         item.className = 'tree-item';
         item.style.paddingLeft = (12 + depth * 16) + 'px';
-        item.innerHTML = `<span class="folder-arrow icon">▶</span><span class="name">📁 ${esc(node.name)}</span>`;
+        item.innerHTML = `<span class="folder-arrow icon">▶</span><span class="name">📁 ${esc(node.title || node.name)}</span>`;
         item.addEventListener('click', () => wrapper.classList.toggle('open'));
 
         const children = document.createElement('div');
@@ -554,7 +562,7 @@
           badge = `<span class="version-badge">${versionMap[stem].length}v</span>`;
         }
 
-        item.innerHTML = `<span class="cat-dot" style="background:${catColor}"></span><span class="name">${esc(node.name)}</span>${badge}`;
+        item.innerHTML = `<span class="cat-dot" style="background:${catColor}"></span><span class="name">${esc(node.title || node.name)}</span>${badge}`;
 
         item.addEventListener('click', () => openFile(node));
         item.addEventListener('contextmenu', (e) => {
@@ -581,7 +589,7 @@
         const item = document.createElement('div');
         item.className = 'tree-item';
         item.style.paddingLeft = (12 + depth * 16) + 'px';
-        item.innerHTML = `<span class="folder-arrow icon">▶</span><span class="name">📁 ${esc(node.name)}</span>`;
+        item.innerHTML = `<span class="folder-arrow icon">▶</span><span class="name">📁 ${esc(node.title || node.name)}</span>`;
         item.addEventListener('click', () => wrapper.classList.toggle('open'));
 
         const children = document.createElement('div');
@@ -609,7 +617,7 @@
           badge = `<span class="version-badge">${versionMap[stem].length}v</span>`;
         }
 
-        item.innerHTML = `<span class="cat-dot" style="background:${catColor}"></span><span class="name">${esc(node.name)}</span>${badge}`;
+        item.innerHTML = `<span class="cat-dot" style="background:${catColor}"></span><span class="name">${esc(node.title || node.name)}</span>${badge}`;
 
         item.addEventListener('click', () => openFile(node));
         item.addEventListener('contextmenu', (e) => {
@@ -852,6 +860,33 @@
   });
 
   // ─── Init ───
+  const savedTheme = localStorage.getItem('htmlnote-theme') ||
+    (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+  const savedDensity = localStorage.getItem('htmlnote-density') || 'comfortable';
+  applyAppearance(savedTheme, savedDensity);
+
+  function applyAppearance(theme, density) {
+    document.documentElement.dataset.theme = theme;
+    document.documentElement.dataset.density = density;
+    document.querySelectorAll('[data-theme-choice]').forEach(button => {
+      button.setAttribute('aria-pressed', String(button.dataset.themeChoice === theme));
+    });
+    document.getElementById('density-toggle').setAttribute('aria-pressed', String(density === 'compact'));
+  }
+
+  document.querySelectorAll('[data-theme-choice]').forEach(button => {
+    button.addEventListener('click', () => {
+      localStorage.setItem('htmlnote-theme', button.dataset.themeChoice);
+      applyAppearance(button.dataset.themeChoice, document.documentElement.dataset.density);
+    });
+  });
+
+  document.getElementById('density-toggle').addEventListener('click', () => {
+    const density = document.documentElement.dataset.density === 'compact' ? 'comfortable' : 'compact';
+    localStorage.setItem('htmlnote-density', density);
+    applyAppearance(document.documentElement.dataset.theme, density);
+  });
+
   loadTree();
 </script>
 

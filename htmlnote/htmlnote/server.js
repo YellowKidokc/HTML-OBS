@@ -7,9 +7,50 @@ const { execSync } = require('child_process');
 const ROOT = process.argv[2] || 'D:\\faiththruphysics.com';
 const PORT = process.argv[3] || 3377;
 
+const NUMERIC_PREFIX = /^(\d+)[-_. ]+/;
+
+function readJson(file) {
+  try { return JSON.parse(fs.readFileSync(file, 'utf8')); }
+  catch { return {}; }
+}
+
+function readHtmlNoteMetadata(file) {
+  if (!/\.html?$/i.test(file)) return {};
+  try {
+    const source = fs.readFileSync(file, 'utf8');
+    const match = source.match(/<script\b[^>]*\bid=["']htmlnote-meta["'][^>]*>([\s\S]*?)<\/script>/i);
+    return match ? JSON.parse(match[1]) : {};
+  } catch { return {}; }
+}
+
+function displayName(name, metadata = {}) {
+  return metadata.title || name.replace(NUMERIC_PREFIX, '').replace(/\.[^.]+$/, '').replace(/[-_]+/g, ' ');
+}
+
+function orderEntries(entries, folderConfig) {
+  const manual = Array.isArray(folderConfig.children) ? folderConfig.children : [];
+  const manualOrder = new Map(manual.map((name, index) => [name, index]));
+  return entries.sort((a, b) => {
+    const aManual = manualOrder.has(a.name) ? manualOrder.get(a.name) : Infinity;
+    const bManual = manualOrder.has(b.name) ? manualOrder.get(b.name) : Infinity;
+    if (aManual !== bManual) return aManual - bManual;
+
+    const aOrder = Number.isFinite(Number(a.metadata?.order)) ? Number(a.metadata.order) : Infinity;
+    const bOrder = Number.isFinite(Number(b.metadata?.order)) ? Number(b.metadata.order) : Infinity;
+    if (aOrder !== bOrder) return aOrder - bOrder;
+
+    const aPrefix = Number(a.name.match(NUMERIC_PREFIX)?.[1] ?? Infinity);
+    const bPrefix = Number(b.name.match(NUMERIC_PREFIX)?.[1] ?? Infinity);
+    if (aPrefix !== bPrefix) return aPrefix - bPrefix;
+    if (a.type !== b.type) return a.type === 'folder' ? -1 : 1;
+    return a.title.localeCompare(b.title, undefined, { numeric: true, sensitivity: 'base' });
+  });
+}
+
 // ─── Recursive scan ───
 function scanDir(dir, base = dir) {
   const entries = [];
+  const folderConfig = readJson(path.join(dir, '_htmlnote.json'));
   let items;
   try { items = fs.readdirSync(dir, { withFileTypes: true }); }
   catch { return entries; }
@@ -21,34 +62,38 @@ function scanDir(dir, base = dir) {
     if (item.isDirectory()) {
       // skip node_modules, .git, etc
       if (/^(node_modules|\.git|__pycache__)$/.test(item.name)) continue;
+      const metadata = readJson(path.join(full, '_htmlnote.json'));
+      if (metadata.hidden === true || metadata.draft === true) continue;
       entries.push({
         type: 'folder',
         name: item.name,
+        title: displayName(item.name, metadata),
         path: rel,
+        metadata,
         children: scanDir(full, base)
       });
     } else {
+      if (item.name === '_htmlnote.json') continue;
       const ext = path.extname(item.name).toLowerCase();
+      const metadata = readHtmlNoteMetadata(full);
+      if (metadata.draft === true || metadata.hidden === true || metadata.headless === true) continue;
       const stat = fs.statSync(full);
       entries.push({
         type: 'file',
         name: item.name,
+        title: displayName(item.name, metadata),
         path: rel,
         ext,
         size: stat.size,
         modified: stat.mtime.toISOString(),
-        category: categorize(ext)
+        category: categorize(ext),
+        metadata
       });
     }
   }
 
-  // Sort: folders first, then files alphabetically
-  entries.sort((a, b) => {
-    if (a.type !== b.type) return a.type === 'folder' ? -1 : 1;
-    return a.name.localeCompare(b.name, undefined, { numeric: true });
-  });
-
-  return entries;
+  // Deterministic precedence: folder sidecar → file metadata → numeric prefix → title.
+  return orderEntries(entries, folderConfig);
 }
 
 function categorize(ext) {
