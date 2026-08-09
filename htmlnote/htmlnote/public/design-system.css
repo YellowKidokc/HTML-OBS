@@ -1,0 +1,85 @@
+:root {
+  /* Semantic layer: the supported user-theme surface. */
+  --background-primary: #f7f6f3;
+  --background-secondary: #efeee9;
+  --background-elevated: #ffffff;
+  --background-hover: #e9e7e1;
+  --background-active: #dfddd5;
+  --text-normal: #272622;
+  --text-muted: #706e67;
+  --text-faint: #97948b;
+  --border-subtle: #dcd9d1;
+  --accent-h: 220;
+  --accent-s: 72%;
+  --accent-l: 48%;
+  --interactive-accent: hsl(var(--accent-h) var(--accent-s) var(--accent-l));
+  --interactive-hover: hsl(var(--accent-h) var(--accent-s) 42%);
+  --font-interface-theme: "Geist", "Inter", ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-text-theme: "Geist", "Inter", ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-monospace-theme: "Geist Mono", "SFMono-Regular", Consolas, monospace;
+  --radius-s: 4px;
+  --radius-m: 6px;
+  --radius-l: 8px;
+  --duration-short: 150ms;
+  --duration-medium: 250ms;
+  --ease-standard: cubic-bezier(.4, 0, .2, 1);
+
+  /* Compatibility/component aliases. Components never consume primitives. */
+  --bg: var(--background-primary);
+  --bg-sidebar: var(--background-secondary);
+  --bg-hover: var(--background-hover);
+  --bg-active: var(--background-active);
+  --text: var(--text-normal);
+  --text-dim: var(--text-muted);
+  --text-bright: var(--text-normal);
+  --accent: var(--interactive-accent);
+  --accent-dim: var(--interactive-hover);
+  --border: var(--border-subtle);
+  --font-sans: var(--font-interface-theme);
+  --font-mono: var(--font-monospace-theme);
+  color-scheme: light;
+}
+
+:root[data-theme="dark"] {
+  --background-primary: #191917;
+  --background-secondary: #131312;
+  --background-elevated: #232321;
+  --background-hover: #292927;
+  --background-active: #343431;
+  --text-normal: #e8e7e3;
+  --text-muted: #a09e96;
+  --text-faint: #74726c;
+  --border-subtle: #32322f;
+  --accent-l: 67%;
+  color-scheme: dark;
+}
+
+:root[data-theme="contrast"] {
+  --background-primary: #000;
+  --background-secondary: #000;
+  --background-elevated: #0b0b0b;
+  --background-hover: #202020;
+  --background-active: #303030;
+  --text-normal: #fff;
+  --text-muted: #e6e6e6;
+  --border-subtle: #fff;
+  --accent-h: 55;
+  --accent-s: 100%;
+  --accent-l: 50%;
+  color-scheme: dark;
+}
+
+:root[data-density="compact"] { --nav-item-height: 24px; --control-padding: 4px 8px; }
+:root:not([data-density="compact"]) { --nav-item-height: 32px; --control-padding: 6px 10px; }
+
+body { background: var(--background-primary); }
+.tree-item { min-height: var(--nav-item-height); transition: background-color var(--duration-short) var(--ease-standard); }
+#search-input, .header-btn { padding: var(--control-padding); }
+#viewer-header { background: var(--background-elevated); }
+.appearance-controls { display: flex; gap: 4px; margin-left: auto; }
+.appearance-btn { width: 28px; height: 28px; padding: 0; border-radius: var(--radius-m); }
+.appearance-btn[aria-pressed="true"] { color: var(--interactive-accent); border-color: var(--interactive-accent); }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { scroll-behavior: auto !important; transition-duration: 0.01ms !important; animation-duration: 0.01ms !important; }
+}

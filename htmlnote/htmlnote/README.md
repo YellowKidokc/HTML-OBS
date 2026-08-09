@@ -26,6 +26,42 @@ Then open http://localhost:3377
 - Search and filter by type
 - Right-click to rename or copy path
 - Ctrl+F to focus search
+- Calm light/dark themes and comfortable/compact density, persisted per browser
+- Deterministic navigation ordering and human-friendly display titles
+
+## Navigation metadata
+
+HTMLNote never relies on filesystem enumeration order. Items are sorted by this
+precedence chain: a folder's `_htmlnote.json` child list, an item's `order`
+metadata, a zero-padded numeric filename prefix, then its display title.
+
+Use a sidecar to control an entire folder:
+
+```json
+{
+  "title": "Guides",
+  "children": ["index.html", "01-getting-started.html"]
+}
+```
+
+HTML files can carry valid, self-contained metadata:
+
+```html
+<script type="application/json" id="htmlnote-meta">
+{ "title": "Getting started", "order": 10, "draft": false }
+</script>
+```
+
+Set `draft`, `hidden`, or `headless` to `true` to keep an item out of navigation.
+Numeric prefixes such as `01-` are removed from display labels but remain in the
+filename for stable URLs, operating-system sorting, and visible Git diffs.
+
+## Design tokens and theming
+
+`tokens.json` is the canonical DTCG-shaped primitive → semantic → component
+token source. The runtime theme surface lives in `public/design-system.css`.
+Components consume semantic/component variables; user themes should override
+only the documented, non-structural semantic properties at `:root`.
 
 ## Change the target folder
 
