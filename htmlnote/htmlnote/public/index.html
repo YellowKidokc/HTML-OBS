@@ -418,6 +418,7 @@
         <button class="header-btn appearance-btn" data-theme-choice="light" aria-label="Light theme" title="Light theme">☀</button>
         <button class="header-btn appearance-btn" data-theme-choice="dark" aria-label="Dark theme" title="Dark theme">◐</button>
         <button class="header-btn appearance-btn" id="density-toggle" aria-label="Toggle compact density" title="Toggle density">≡</button>
+        <button class="header-btn appearance-btn" id="theme-open" aria-label="Customize theme" title="Customize theme">⚙</button>
       </div>
     </div>
     <div class="root-path" id="root-path">loading...</div>
@@ -472,6 +473,22 @@
     </div>
   </div>
 </div>
+
+<!-- Theming panel (Surface 2: cosmetic, whitelisted semantic tokens) -->
+<div id="theme-backdrop"></div>
+<aside id="theme-panel" aria-label="Theme customization">
+  <header>
+    <h2>Customize theme</h2>
+    <button class="header-btn" id="theme-close" aria-label="Close">✕</button>
+  </header>
+  <div class="panel-body" id="theme-panel-body"></div>
+  <div class="panel-actions">
+    <button class="header-btn" id="theme-reset">Reset</button>
+    <button class="header-btn" id="theme-export">Export</button>
+    <button class="header-btn" id="theme-import">Import</button>
+    <input type="file" id="theme-import-input" accept="application/json,.json" hidden>
+  </div>
+</aside>
 
 <!-- Context menu -->
 <div id="context-menu">
@@ -889,6 +906,7 @@
 
   loadTree();
 </script>
+<script src="/theming.js"></script>
 
 </body>
 </html>

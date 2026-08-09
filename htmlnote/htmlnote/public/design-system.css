@@ -1,30 +1,85 @@
+/* ============================================================================
+   HTMLNote design system — runtime tokens
+   ----------------------------------------------------------------------------
+   Three tiers resolved at runtime on :root.
+     1. Primitive  (--_p-*)  raw values. Private, never exposed to user themes.
+     2. Semantic             meaning. THE user-themeable surface (whitelist).
+     3. Component  (--c-*)    specificity + structural sizing. Not themeable.
+   Components consume only semantic/component tokens, never primitives, so
+   dark mode / rebrands / density switches happen by re-pointing the semantic
+   layer alone.  The whitelist of user-editable semantic tokens is enforced in
+   public/theming.js (THEMEABLE) — keep the two in sync.
+   ========================================================================== */
+
 :root {
-  /* Semantic layer: the supported user-theme surface. */
-  --background-primary: #f7f6f3;
-  --background-secondary: #efeee9;
-  --background-elevated: #ffffff;
-  --background-hover: #e9e7e1;
-  --background-active: #dfddd5;
-  --text-normal: #272622;
-  --text-muted: #706e67;
-  --text-faint: #97948b;
-  --border-subtle: #dcd9d1;
+  /* ---- Primitive layer (private) ---- */
+  --_p-warm-0: #ffffff;
+  --_p-warm-50: #f7f6f3;
+  --_p-warm-100: #efeee9;
+  --_p-warm-150: #e9e7e1;
+  --_p-warm-200: #dfddd5;
+  --_p-warm-300: #dcd9d1;
+  --_p-warm-500: #97948b;
+  --_p-warm-600: #706e67;
+  --_p-warm-900: #272622;
+
+  --_p-space-half: 4px;
+  --_p-space-1: 8px;
+  --_p-space-2: 12px;
+  --_p-space-3: 16px;
+  --_p-space-4: 24px;
+  --_p-space-5: 32px;
+
+  --_p-radius-s: 4px;
+  --_p-radius-m: 6px;
+  --_p-radius-l: 8px;
+  --_p-radius-pill: 9999px;
+
+  --_p-duration-short: 150ms;
+  --_p-duration-medium: 250ms;
+  --_p-duration-long: 350ms;
+  --_p-ease-standard: cubic-bezier(.4, 0, .2, 1);
+  --_p-ease-emphasized: cubic-bezier(.2, 0, 0, 1);
+
+  /* ---- Semantic layer: the supported user-theme surface (whitelist) ----
+     Held as literal values (mirrors the primitive ramp above) so the theming
+     GUI can read the active value back with getComputedStyle reliably. */
+  --background-primary: #f7f6f3;   /* --_p-warm-50  */
+  --background-secondary: #efeee9; /* --_p-warm-100 */
+  --background-elevated: #ffffff;  /* --_p-warm-0   */
+  --background-hover: #e9e7e1;     /* --_p-warm-150 */
+  --background-active: #dfddd5;    /* --_p-warm-200 */
+  --text-normal: #272622;          /* --_p-warm-900 */
+  --text-muted: #706e67;           /* --_p-warm-600 */
+  --text-faint: #97948b;           /* --_p-warm-500 */
+  --border-subtle: #dcd9d1;        /* --_p-warm-300 */
+
   --accent-h: 220;
   --accent-s: 72%;
   --accent-l: 48%;
   --interactive-accent: hsl(var(--accent-h) var(--accent-s) var(--accent-l));
-  --interactive-hover: hsl(var(--accent-h) var(--accent-s) 42%);
+  --interactive-hover: hsl(var(--accent-h) var(--accent-s) calc(var(--accent-l) - 6%));
+
   --font-interface-theme: "Geist", "Inter", ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   --font-text-theme: "Geist", "Inter", ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   --font-monospace-theme: "Geist Mono", "SFMono-Regular", Consolas, monospace;
-  --radius-s: 4px;
-  --radius-m: 6px;
-  --radius-l: 8px;
-  --duration-short: 150ms;
-  --duration-medium: 250ms;
-  --ease-standard: cubic-bezier(.4, 0, .2, 1);
+  --font-size-body: 16px;
+  --line-height-reading: 1.6;
+  --radius-s: var(--_p-radius-s);
+  --radius-m: var(--_p-radius-m);
+  --radius-l: var(--_p-radius-l);
 
-  /* Compatibility/component aliases. Components never consume primitives. */
+  /* ---- Component layer: structural, NOT user-themeable ---- */
+  --c-nav-item-height: 32px;
+  --c-control-padding: 6px 10px;
+  --c-space-group: var(--_p-space-1);
+  --c-space-section: var(--_p-space-3);
+  --duration-short: var(--_p-duration-short);
+  --duration-medium: var(--_p-duration-medium);
+  --ease-standard: var(--_p-ease-standard);
+  --ease-emphasized: var(--_p-ease-emphasized);
+
+  /* ---- Compatibility aliases (legacy names used by index.html) ---- */
   --bg: var(--background-primary);
   --bg-sidebar: var(--background-secondary);
   --bg-hover: var(--background-hover);
@@ -62,6 +117,7 @@
   --background-active: #303030;
   --text-normal: #fff;
   --text-muted: #e6e6e6;
+  --text-faint: #cccccc;
   --border-subtle: #fff;
   --accent-h: 55;
   --accent-s: 100%;
@@ -69,16 +125,77 @@
   color-scheme: dark;
 }
 
-:root[data-density="compact"] { --nav-item-height: 24px; --control-padding: 4px 8px; }
-:root:not([data-density="compact"]) { --nav-item-height: 32px; --control-padding: 6px 10px; }
+/* Density re-points structural spacing only; never leaks into user themes. */
+:root[data-density="compact"] { --c-nav-item-height: 24px; --c-control-padding: 4px 8px; }
+:root:not([data-density="compact"]) { --c-nav-item-height: 32px; --c-control-padding: 6px 10px; }
 
 body { background: var(--background-primary); }
-.tree-item { min-height: var(--nav-item-height); transition: background-color var(--duration-short) var(--ease-standard); }
-#search-input, .header-btn { padding: var(--control-padding); }
+.tree-item { min-height: var(--c-nav-item-height); transition: background-color var(--duration-short) var(--ease-standard); }
+#search-input, .header-btn { padding: var(--c-control-padding); }
 #viewer-header { background: var(--background-elevated); }
-.appearance-controls { display: flex; gap: 4px; margin-left: auto; }
-.appearance-btn { width: 28px; height: 28px; padding: 0; border-radius: var(--radius-m); }
+#markdown-viewer { font-size: var(--font-size-body); line-height: var(--line-height-reading); font-family: var(--font-text-theme); }
+
+.appearance-controls { display: flex; gap: var(--_p-space-half); margin-left: auto; }
+.appearance-btn { width: 28px; height: 28px; padding: 0; border-radius: var(--radius-m); display: inline-flex; align-items: center; justify-content: center; }
 .appearance-btn[aria-pressed="true"] { color: var(--interactive-accent); border-color: var(--interactive-accent); }
+
+/* ---- Theming panel (Style-Settings-style GUI bound to the whitelist) ---- */
+#theme-panel {
+  position: fixed;
+  top: 0; right: 0; bottom: 0;
+  width: 320px;
+  max-width: 90vw;
+  background: var(--background-secondary);
+  border-left: 1px solid var(--border-subtle);
+  box-shadow: -8px 0 24px rgba(0, 0, 0, .28);
+  transform: translateX(100%);
+  transition: transform var(--duration-medium) var(--ease-emphasized);
+  z-index: 300;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+#theme-panel.open { transform: translateX(0); }
+#theme-panel header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: var(--_p-space-2) var(--_p-space-3);
+  border-bottom: 1px solid var(--border-subtle);
+  flex-shrink: 0;
+}
+#theme-panel header h2 { font-size: 14px; color: var(--text-normal); font-weight: 600; }
+#theme-panel .panel-body { overflow-y: auto; padding: var(--_p-space-3); flex: 1; }
+#theme-panel .ts-group { margin-bottom: var(--_p-space-4); }
+#theme-panel .ts-group > h3 {
+  font-size: 11px; text-transform: uppercase; letter-spacing: .06em;
+  color: var(--text-faint); margin-bottom: var(--_p-space-1);
+}
+#theme-panel .ts-control { margin-bottom: var(--_p-space-2); }
+#theme-panel .ts-control label {
+  display: flex; align-items: center; justify-content: space-between;
+  font-size: 12px; color: var(--text-muted); margin-bottom: var(--_p-space-half);
+}
+#theme-panel .ts-control label .val { color: var(--text-faint); font-family: var(--font-mono); font-size: 11px; }
+#theme-panel .ts-control input[type="range"] { width: 100%; accent-color: var(--interactive-accent); }
+#theme-panel .ts-control input[type="color"] { width: 100%; height: 28px; padding: 0; border: 1px solid var(--border-subtle); border-radius: var(--radius-s); background: none; cursor: pointer; }
+#theme-panel .ts-control select {
+  width: 100%; padding: var(--c-control-padding); font-size: 12px;
+  background: var(--background-primary); color: var(--text-normal);
+  border: 1px solid var(--border-subtle); border-radius: var(--radius-s);
+  font-family: var(--font-sans);
+}
+#theme-panel .panel-actions {
+  display: flex; flex-wrap: wrap; gap: var(--_p-space-half);
+  padding: var(--_p-space-2) var(--_p-space-3);
+  border-top: 1px solid var(--border-subtle);
+  flex-shrink: 0;
+}
+#theme-panel .panel-actions .header-btn { flex: 1 1 auto; text-align: center; }
+#theme-backdrop {
+  position: fixed; inset: 0; background: rgba(0, 0, 0, .3);
+  z-index: 299; opacity: 0; pointer-events: none;
+  transition: opacity var(--duration-short) var(--ease-standard);
+}
+#theme-backdrop.open { opacity: 1; pointer-events: auto; }
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto !important; transition-duration: 0.01ms !important; animation-duration: 0.01ms !important; }

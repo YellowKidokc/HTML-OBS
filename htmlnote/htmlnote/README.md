@@ -59,9 +59,46 @@ filename for stable URLs, operating-system sorting, and visible Git diffs.
 ## Design tokens and theming
 
 `tokens.json` is the canonical DTCG-shaped primitive → semantic → component
-token source. The runtime theme surface lives in `public/design-system.css`.
-Components consume semantic/component variables; user themes should override
-only the documented, non-structural semantic properties at `:root`.
+token source (spacing grid, radii, motion ladder, typography roles, and a warm
+near-neutral color ramp). The runtime theme surface lives in
+`public/design-system.css`. Components consume semantic/component variables
+only, never primitives — so dark mode, rebrands, and density changes happen by
+re-pointing the semantic layer alone.
+
+### Two customization surfaces
+
+HTMLNote separates structural theming from cosmetic theming so a user theme can
+never break the layout:
+
+1. **Structural (built-in):** light / dark / high-contrast theme and
+   comfortable / compact density, toggled from the header (☀ ◐ ≡) and applied
+   as `data-theme` / `data-density` attributes on `:root`. Persisted per browser.
+2. **Cosmetic (⚙ Customize theme):** a Style-Settings-style panel bound to an
+   explicit **whitelist** of documented semantic tokens — accent hue/saturation/
+   lightness, surface and text colors, reading font, body size, line height, and
+   corner radius. The whitelist is defined once in `public/theming.js`
+   (`THEMEABLE`) and enforced on apply and import; anything structural (panel
+   sizes, spacing, layout) is never exposed. Values are written as inline custom
+   properties on `:root`, persist to `localStorage`, and can be reset.
+
+### Portable theme packages
+
+**Export** writes an `htmlnote-theme.json` package; **Import** reads one back:
+
+```json
+{
+  "name": "HTMLNote custom theme",
+  "base": "dark",
+  "density": "comfortable",
+  "overrides": {
+    "--accent-h": "265",
+    "--background-primary": "#12121a"
+  }
+}
+```
+
+`base` selects the structural theme the overrides sit on top of. Off-whitelist
+keys in an imported file are ignored.
 
 ## Change the target folder
 
