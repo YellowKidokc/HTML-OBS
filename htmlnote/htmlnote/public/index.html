@@ -1,0 +1,859 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HTMLNote</title>
+<style>
+  :root {
+    --bg: #1a1a1e;
+    --bg-sidebar: #141416;
+    --bg-hover: #2a2a2e;
+    --bg-active: #333338;
+    --text: #d4d4d8;
+    --text-dim: #71717a;
+    --text-bright: #fafafa;
+    --accent: #6d9cff;
+    --accent-dim: #4a6fb0;
+    --border: #27272a;
+    --cat-html: #6d9cff;
+    --cat-md: #a78bfa;
+    --cat-video: #f97316;
+    --cat-audio: #22c55e;
+    --cat-image: #ec4899;
+    --cat-code: #facc15;
+    --cat-pdf: #ef4444;
+    --cat-other: #71717a;
+    --font-sans: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    --font-mono: 'Cascadia Code', 'Fira Code', 'Consolas', monospace;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: var(--font-sans);
+    background: var(--bg);
+    color: var(--text);
+    height: 100vh;
+    overflow: hidden;
+    display: flex;
+  }
+
+  /* ─── Sidebar ─── */
+  #sidebar {
+    width: 300px;
+    min-width: 300px;
+    background: var(--bg-sidebar);
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    overflow: hidden;
+  }
+
+  #sidebar-header {
+    padding: 16px;
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+
+  #sidebar-header h1 {
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--text-bright);
+    letter-spacing: 0.5px;
+  }
+
+  #sidebar-header .root-path {
+    font-size: 11px;
+    color: var(--text-dim);
+    margin-top: 4px;
+    font-family: var(--font-mono);
+    word-break: break-all;
+  }
+
+  /* ─── Filter bar ─── */
+  #filter-bar {
+    padding: 8px 16px;
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+
+  #search-input {
+    width: 100%;
+    padding: 6px 10px;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    color: var(--text);
+    font-size: 13px;
+    outline: none;
+    font-family: var(--font-sans);
+  }
+  #search-input:focus { border-color: var(--accent); }
+  #search-input::placeholder { color: var(--text-dim); }
+
+  #category-filters {
+    display: flex;
+    gap: 4px;
+    margin-top: 6px;
+    flex-wrap: wrap;
+  }
+
+  .cat-btn {
+    font-size: 10px;
+    padding: 2px 8px;
+    border-radius: 10px;
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--text-dim);
+    cursor: pointer;
+    font-family: var(--font-sans);
+    transition: all 0.15s;
+  }
+  .cat-btn.active { background: var(--bg-active); color: var(--text-bright); }
+  .cat-btn:hover { border-color: var(--text-dim); }
+
+  /* ─── Tree ─── */
+  #tree-container {
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding: 4px 0;
+  }
+
+  #tree-container::-webkit-scrollbar { width: 6px; }
+  #tree-container::-webkit-scrollbar-track { background: transparent; }
+  #tree-container::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+  .tree-item {
+    display: flex;
+    align-items: center;
+    padding: 4px 12px;
+    cursor: pointer;
+    font-size: 13px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    user-select: none;
+    transition: background 0.1s;
+    min-height: 28px;
+  }
+  .tree-item:hover { background: var(--bg-hover); }
+  .tree-item.active { background: var(--bg-active); color: var(--text-bright); }
+
+  .tree-item .icon {
+    width: 16px;
+    height: 16px;
+    margin-right: 6px;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+  }
+
+  .tree-item .cat-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    margin-right: 8px;
+    flex-shrink: 0;
+  }
+
+  .tree-item .name {
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .tree-item .version-badge {
+    font-size: 9px;
+    background: var(--accent-dim);
+    color: var(--text-bright);
+    padding: 1px 5px;
+    border-radius: 8px;
+    margin-left: 6px;
+    flex-shrink: 0;
+  }
+
+  .tree-folder > .tree-children { display: none; }
+  .tree-folder.open > .tree-children { display: block; }
+
+  .tree-folder > .tree-item .folder-arrow {
+    font-size: 9px;
+    margin-right: 4px;
+    transition: transform 0.15s;
+    color: var(--text-dim);
+  }
+  .tree-folder.open > .tree-item .folder-arrow { transform: rotate(90deg); }
+
+  /* ─── Counts bar ─── */
+  #counts-bar {
+    padding: 8px 16px;
+    border-top: 1px solid var(--border);
+    font-size: 11px;
+    color: var(--text-dim);
+    flex-shrink: 0;
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+
+  .count-chip {
+    display: flex;
+    align-items: center;
+    gap: 3px;
+  }
+
+  .count-chip .dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+  }
+
+  /* ─── Main viewer ─── */
+  #main {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  #viewer-header {
+    padding: 10px 20px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-shrink: 0;
+    min-height: 44px;
+  }
+
+  #viewer-header .file-path {
+    font-size: 12px;
+    color: var(--text-dim);
+    font-family: var(--font-mono);
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  #viewer-header .version-select {
+    padding: 3px 8px;
+    background: var(--bg-sidebar);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    color: var(--text);
+    font-size: 12px;
+    font-family: var(--font-mono);
+    cursor: pointer;
+  }
+
+  .header-btn {
+    padding: 4px 10px;
+    background: var(--bg-hover);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    color: var(--text);
+    font-size: 11px;
+    cursor: pointer;
+    font-family: var(--font-sans);
+    transition: all 0.15s;
+  }
+  .header-btn:hover { background: var(--bg-active); border-color: var(--text-dim); }
+
+  #viewer-frame {
+    flex: 1;
+    border: none;
+    background: white;
+  }
+
+  #empty-state {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-dim);
+  }
+
+  #empty-state .logo {
+    font-size: 48px;
+    margin-bottom: 16px;
+    opacity: 0.3;
+  }
+
+  #empty-state p {
+    font-size: 14px;
+    max-width: 300px;
+    text-align: center;
+    line-height: 1.6;
+  }
+
+  /* ─── Rename modal ─── */
+  #rename-modal {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.6);
+    z-index: 100;
+    align-items: center;
+    justify-content: center;
+  }
+  #rename-modal.show { display: flex; }
+
+  .modal-box {
+    background: var(--bg-sidebar);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 20px;
+    width: 400px;
+  }
+
+  .modal-box h3 {
+    font-size: 14px;
+    color: var(--text-bright);
+    margin-bottom: 12px;
+  }
+
+  .modal-box input {
+    width: 100%;
+    padding: 8px 10px;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    color: var(--text);
+    font-size: 13px;
+    font-family: var(--font-mono);
+    outline: none;
+  }
+  .modal-box input:focus { border-color: var(--accent); }
+
+  .modal-actions {
+    margin-top: 12px;
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+  }
+
+  /* ─── Context menu ─── */
+  #context-menu {
+    display: none;
+    position: fixed;
+    background: var(--bg-sidebar);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 4px 0;
+    z-index: 200;
+    min-width: 160px;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.4);
+  }
+  #context-menu.show { display: block; }
+
+  .ctx-item {
+    padding: 6px 14px;
+    font-size: 12px;
+    cursor: pointer;
+    color: var(--text);
+  }
+  .ctx-item:hover { background: var(--bg-hover); }
+
+  /* ─── Media viewer ─── */
+  #media-viewer {
+    flex: 1;
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 40px;
+    overflow: auto;
+  }
+
+  #media-viewer video,
+  #media-viewer audio {
+    max-width: 100%;
+    max-height: 80vh;
+    border-radius: 4px;
+  }
+
+  #media-viewer img {
+    max-width: 100%;
+    max-height: 80vh;
+    border-radius: 4px;
+  }
+
+  #markdown-viewer {
+    flex: 1;
+    display: none;
+    padding: 40px 60px;
+    overflow-y: auto;
+    color: var(--text);
+    line-height: 1.7;
+    font-size: 15px;
+    max-width: 800px;
+  }
+
+  #markdown-viewer h1 { font-size: 28px; color: var(--text-bright); margin: 24px 0 12px; }
+  #markdown-viewer h2 { font-size: 22px; color: var(--text-bright); margin: 20px 0 10px; }
+  #markdown-viewer h3 { font-size: 18px; color: var(--text-bright); margin: 16px 0 8px; }
+  #markdown-viewer code {
+    background: var(--bg-hover);
+    padding: 1px 5px;
+    border-radius: 3px;
+    font-family: var(--font-mono);
+    font-size: 13px;
+  }
+</style>
+</head>
+<body>
+
+<!-- Sidebar -->
+<div id="sidebar">
+  <div id="sidebar-header">
+    <h1>HTMLNote</h1>
+    <div class="root-path" id="root-path">loading...</div>
+  </div>
+
+  <div id="filter-bar">
+    <input type="text" id="search-input" placeholder="Search files...">
+    <div id="category-filters">
+      <button class="cat-btn active" data-cat="all">All</button>
+      <button class="cat-btn" data-cat="html">HTML</button>
+      <button class="cat-btn" data-cat="markdown">Markdown</button>
+      <button class="cat-btn" data-cat="video">Video</button>
+      <button class="cat-btn" data-cat="audio">Audio</button>
+      <button class="cat-btn" data-cat="image">Image</button>
+      <button class="cat-btn" data-cat="code">Code</button>
+    </div>
+  </div>
+
+  <div id="tree-container"></div>
+
+  <div id="counts-bar"></div>
+</div>
+
+<!-- Main -->
+<div id="main">
+  <div id="viewer-header" style="display:none;">
+    <span class="file-path" id="current-path"></span>
+    <select class="version-select" id="version-select" style="display:none;"></select>
+    <button class="header-btn" id="btn-rename">Rename</button>
+    <button class="header-btn" id="btn-open-folder">Open folder</button>
+    <button class="header-btn" id="btn-refresh">↻ Refresh</button>
+  </div>
+
+  <div id="empty-state">
+    <div class="logo">📓</div>
+    <p>Select a file from the sidebar to preview it here. HTML files render live. Videos, audio, markdown, and images all work.</p>
+  </div>
+
+  <iframe id="viewer-frame" style="display:none;" sandbox="allow-scripts allow-same-origin"></iframe>
+  <div id="media-viewer"></div>
+  <div id="markdown-viewer"></div>
+</div>
+
+<!-- Rename modal -->
+<div id="rename-modal">
+  <div class="modal-box">
+    <h3>Rename file</h3>
+    <input type="text" id="rename-input">
+    <div class="modal-actions">
+      <button class="header-btn" id="rename-cancel">Cancel</button>
+      <button class="header-btn" id="rename-confirm" style="background:var(--accent-dim);">Rename</button>
+    </div>
+  </div>
+</div>
+
+<!-- Context menu -->
+<div id="context-menu">
+  <div class="ctx-item" data-action="open">Open</div>
+  <div class="ctx-item" data-action="rename">Rename</div>
+  <div class="ctx-item" data-action="copypath">Copy path</div>
+</div>
+
+<script>
+  const API = '';  // same origin
+  let treeData = [];
+  let versionMap = {};
+  let activeFile = null;
+  let contextTarget = null;
+  let allFiles = [];
+
+  // ─── Load tree ───
+  async function loadTree() {
+    const res = await fetch(`${API}/api/tree`);
+    const data = await res.json();
+    treeData = data.tree;
+    versionMap = data.versions;
+    document.getElementById('root-path').textContent = data.root;
+
+    // Collect all files flat
+    allFiles = [];
+    flatCollect(treeData, allFiles);
+
+    renderTree(treeData);
+    renderCounts();
+  }
+
+  function flatCollect(nodes, out) {
+    for (const n of nodes) {
+      if (n.type === 'file') out.push(n);
+      else if (n.children) flatCollect(n.children, out);
+    }
+  }
+
+  // ─── Render tree ───
+  function renderTree(nodes, depth = 0) {
+    const container = document.getElementById('tree-container');
+    if (depth === 0) container.innerHTML = '';
+
+    const filter = getActiveCategory();
+    const search = document.getElementById('search-input').value.toLowerCase();
+    const frag = document.createDocumentFragment();
+
+    for (const node of nodes) {
+      if (node.type === 'folder') {
+        // Check if folder has matching children
+        if (!folderHasMatch(node, filter, search)) continue;
+
+        const wrapper = document.createElement('div');
+        wrapper.className = 'tree-folder';
+        if (depth < 1) wrapper.classList.add('open');
+
+        const item = document.createElement('div');
+        item.className = 'tree-item';
+        item.style.paddingLeft = (12 + depth * 16) + 'px';
+        item.innerHTML = `<span class="folder-arrow icon">▶</span><span class="name">📁 ${esc(node.name)}</span>`;
+        item.addEventListener('click', () => wrapper.classList.toggle('open'));
+
+        const children = document.createElement('div');
+        children.className = 'tree-children';
+
+        wrapper.appendChild(item);
+        wrapper.appendChild(children);
+        frag.appendChild(wrapper);
+
+        renderTreeInto(children, node.children, depth + 1, filter, search);
+      } else {
+        if (filter !== 'all' && node.category !== filter) continue;
+        if (search && !node.name.toLowerCase().includes(search) && !node.path.toLowerCase().includes(search)) continue;
+
+        const item = document.createElement('div');
+        item.className = 'tree-item';
+        if (activeFile && activeFile.path === node.path) item.classList.add('active');
+        item.style.paddingLeft = (12 + depth * 16) + 'px';
+        item.dataset.path = node.path;
+
+        const catColor = getCatColor(node.category);
+        let badge = '';
+
+        // Check for versions
+        const stem = getVersionKey(node);
+        if (stem && versionMap[stem] && versionMap[stem].length > 1) {
+          badge = `<span class="version-badge">${versionMap[stem].length}v</span>`;
+        }
+
+        item.innerHTML = `<span class="cat-dot" style="background:${catColor}"></span><span class="name">${esc(node.name)}</span>${badge}`;
+
+        item.addEventListener('click', () => openFile(node));
+        item.addEventListener('contextmenu', (e) => {
+          e.preventDefault();
+          showContextMenu(e, node);
+        });
+
+        frag.appendChild(item);
+      }
+    }
+
+    if (depth === 0) container.appendChild(frag);
+    return frag;
+  }
+
+  function renderTreeInto(container, nodes, depth, filter, search) {
+    for (const node of nodes) {
+      if (node.type === 'folder') {
+        if (!folderHasMatch(node, filter, search)) continue;
+
+        const wrapper = document.createElement('div');
+        wrapper.className = 'tree-folder';
+
+        const item = document.createElement('div');
+        item.className = 'tree-item';
+        item.style.paddingLeft = (12 + depth * 16) + 'px';
+        item.innerHTML = `<span class="folder-arrow icon">▶</span><span class="name">📁 ${esc(node.name)}</span>`;
+        item.addEventListener('click', () => wrapper.classList.toggle('open'));
+
+        const children = document.createElement('div');
+        children.className = 'tree-children';
+
+        wrapper.appendChild(item);
+        wrapper.appendChild(children);
+        container.appendChild(wrapper);
+
+        renderTreeInto(children, node.children, depth + 1, filter, search);
+      } else {
+        if (filter !== 'all' && node.category !== filter) continue;
+        if (search && !node.name.toLowerCase().includes(search) && !node.path.toLowerCase().includes(search)) continue;
+
+        const item = document.createElement('div');
+        item.className = 'tree-item';
+        if (activeFile && activeFile.path === node.path) item.classList.add('active');
+        item.style.paddingLeft = (12 + depth * 16) + 'px';
+        item.dataset.path = node.path;
+
+        const catColor = getCatColor(node.category);
+        let badge = '';
+        const stem = getVersionKey(node);
+        if (stem && versionMap[stem] && versionMap[stem].length > 1) {
+          badge = `<span class="version-badge">${versionMap[stem].length}v</span>`;
+        }
+
+        item.innerHTML = `<span class="cat-dot" style="background:${catColor}"></span><span class="name">${esc(node.name)}</span>${badge}`;
+
+        item.addEventListener('click', () => openFile(node));
+        item.addEventListener('contextmenu', (e) => {
+          e.preventDefault();
+          showContextMenu(e, node);
+        });
+
+        container.appendChild(item);
+      }
+    }
+  }
+
+  function folderHasMatch(folder, filter, search) {
+    for (const n of folder.children) {
+      if (n.type === 'folder' && folderHasMatch(n, filter, search)) return true;
+      if (n.type === 'file') {
+        if (filter !== 'all' && n.category !== filter) continue;
+        if (search && !n.name.toLowerCase().includes(search) && !n.path.toLowerCase().includes(search)) continue;
+        return true;
+      }
+    }
+    return false;
+  }
+
+  function getVersionKey(node) {
+    if (node.category !== 'html') return null;
+    const dir = node.path.includes('/') ? node.path.substring(0, node.path.lastIndexOf('/')) : '';
+    const base = node.name
+      .replace(/\.(html|htm)$/i, '')
+      .replace(/[_\- ]*(v\d+|copy|backup|old|new|final|draft|rev\d*)$/i, '')
+      .toLowerCase().trim();
+    return dir ? `${dir}/${base}` : base;
+  }
+
+  // ─── Open file ───
+  function openFile(node) {
+    activeFile = node;
+
+    const frame = document.getElementById('viewer-frame');
+    const media = document.getElementById('media-viewer');
+    const mdView = document.getElementById('markdown-viewer');
+    const empty = document.getElementById('empty-state');
+    const header = document.getElementById('viewer-header');
+
+    // Hide all
+    frame.style.display = 'none';
+    media.style.display = 'none';
+    mdView.style.display = 'none';
+    empty.style.display = 'none';
+    header.style.display = 'flex';
+
+    document.getElementById('current-path').textContent = node.path;
+
+    // Version select
+    const vSelect = document.getElementById('version-select');
+    const stem = getVersionKey(node);
+    if (stem && versionMap[stem] && versionMap[stem].length > 1) {
+      vSelect.style.display = '';
+      vSelect.innerHTML = '';
+      for (const v of versionMap[stem]) {
+        const opt = document.createElement('option');
+        opt.value = v.path;
+        opt.textContent = v.name;
+        if (v.path === node.path) opt.selected = true;
+        vSelect.appendChild(opt);
+      }
+    } else {
+      vSelect.style.display = 'none';
+    }
+
+    const url = `${API}/api/file?path=${encodeURIComponent(node.path)}`;
+
+    if (node.category === 'html') {
+      frame.src = url;
+      frame.style.display = 'block';
+    } else if (node.category === 'video') {
+      media.innerHTML = `<video controls src="${url}"></video>`;
+      media.style.display = 'flex';
+    } else if (node.category === 'audio') {
+      media.innerHTML = `<p style="margin-bottom:16px;color:var(--text-bright);font-size:16px">${esc(node.name)}</p><audio controls src="${url}"></audio>`;
+      media.style.display = 'flex';
+    } else if (node.category === 'image') {
+      media.innerHTML = `<img src="${url}" alt="${esc(node.name)}">`;
+      media.style.display = 'flex';
+    } else if (node.category === 'markdown') {
+      fetch(url).then(r => r.json()).then(data => {
+        mdView.innerHTML = data.html;
+        mdView.style.display = 'block';
+      });
+    } else if (node.category === 'pdf') {
+      frame.src = url;
+      frame.style.display = 'block';
+    } else {
+      // code / other — show as text in markdown viewer
+      fetch(url).then(r => r.text()).then(text => {
+        mdView.innerHTML = `<pre style="font-family:var(--font-mono);font-size:13px;white-space:pre-wrap;word-break:break-all;">${esc(text)}</pre>`;
+        mdView.style.display = 'block';
+      });
+    }
+
+    // Re-render tree to show active
+    renderTree(treeData);
+  }
+
+  // ─── Counts ───
+  function renderCounts() {
+    const cats = {};
+    for (const f of allFiles) {
+      cats[f.category] = (cats[f.category] || 0) + 1;
+    }
+    const bar = document.getElementById('counts-bar');
+    bar.innerHTML = Object.entries(cats)
+      .sort((a, b) => b[1] - a[1])
+      .map(([cat, count]) => `<span class="count-chip"><span class="dot" style="background:${getCatColor(cat)}"></span>${count} ${cat}</span>`)
+      .join('');
+  }
+
+  // ─── Helpers ───
+  function getCatColor(cat) {
+    const colors = {
+      html: 'var(--cat-html)', markdown: 'var(--cat-md)',
+      video: 'var(--cat-video)', audio: 'var(--cat-audio)',
+      image: 'var(--cat-image)', code: 'var(--cat-code)',
+      pdf: 'var(--cat-pdf)', other: 'var(--cat-other)'
+    };
+    return colors[cat] || colors.other;
+  }
+
+  function esc(s) {
+    const d = document.createElement('div');
+    d.textContent = s;
+    return d.innerHTML;
+  }
+
+  function getActiveCategory() {
+    const active = document.querySelector('.cat-btn.active');
+    return active ? active.dataset.cat : 'all';
+  }
+
+  // ─── Filter events ───
+  document.querySelectorAll('.cat-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.cat-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      renderTree(treeData);
+    });
+  });
+
+  document.getElementById('search-input').addEventListener('input', () => {
+    renderTree(treeData);
+  });
+
+  // ─── Version switch ───
+  document.getElementById('version-select').addEventListener('change', (e) => {
+    const path = e.target.value;
+    const file = allFiles.find(f => f.path === path);
+    if (file) openFile(file);
+  });
+
+  // ─── Rename ───
+  document.getElementById('btn-rename').addEventListener('click', () => {
+    if (!activeFile) return;
+    document.getElementById('rename-input').value = activeFile.name;
+    document.getElementById('rename-modal').classList.add('show');
+    setTimeout(() => document.getElementById('rename-input').focus(), 50);
+  });
+
+  document.getElementById('rename-cancel').addEventListener('click', () => {
+    document.getElementById('rename-modal').classList.remove('show');
+  });
+
+  document.getElementById('rename-confirm').addEventListener('click', async () => {
+    const newName = document.getElementById('rename-input').value.trim();
+    if (!newName || !activeFile) return;
+    const res = await fetch(`${API}/api/rename`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ oldPath: activeFile.path, newName })
+    });
+    const data = await res.json();
+    document.getElementById('rename-modal').classList.remove('show');
+    if (data.ok) {
+      await loadTree();
+      const file = allFiles.find(f => f.path === data.newPath);
+      if (file) openFile(file);
+    } else {
+      alert(data.error || 'Rename failed');
+    }
+  });
+
+  // ─── Context menu ───
+  function showContextMenu(e, node) {
+    contextTarget = node;
+    const menu = document.getElementById('context-menu');
+    menu.style.left = e.clientX + 'px';
+    menu.style.top = e.clientY + 'px';
+    menu.classList.add('show');
+  }
+
+  document.addEventListener('click', () => {
+    document.getElementById('context-menu').classList.remove('show');
+  });
+
+  document.querySelectorAll('.ctx-item').forEach(item => {
+    item.addEventListener('click', () => {
+      if (!contextTarget) return;
+      const action = item.dataset.action;
+      if (action === 'open') openFile(contextTarget);
+      if (action === 'rename') {
+        activeFile = contextTarget;
+        document.getElementById('btn-rename').click();
+      }
+      if (action === 'copypath') {
+        navigator.clipboard.writeText(contextTarget.path);
+      }
+    });
+  });
+
+  // ─── Refresh ───
+  document.getElementById('btn-refresh').addEventListener('click', loadTree);
+
+  // ─── Open folder (just shows path) ───
+  document.getElementById('btn-open-folder').addEventListener('click', () => {
+    if (!activeFile) return;
+    const dir = activeFile.path.includes('/') ? activeFile.path.substring(0, activeFile.path.lastIndexOf('/')) : '';
+    alert('Folder: ' + dir);
+  });
+
+  // ─── Keyboard ───
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+      document.getElementById('rename-modal').classList.remove('show');
+      document.getElementById('context-menu').classList.remove('show');
+    }
+    // Ctrl+F focus search
+    if (e.ctrlKey && e.key === 'f') {
+      e.preventDefault();
+      document.getElementById('search-input').focus();
+    }
+  });
+
+  // ─── Init ───
+  loadTree();
+</script>
+
+</body>
+</html>

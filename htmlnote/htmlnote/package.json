@@ -1,0 +1,10 @@
+{
+  "name": "htmlnote",
+  "version": "0.1.0",
+  "description": "Obsidian-style notebook for HTML files",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js D:\\faiththruphysics.com 3377"
+  }
+}
