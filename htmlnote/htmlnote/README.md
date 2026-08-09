@@ -28,6 +28,11 @@ Then open http://localhost:3377
 - Ctrl+F to focus search
 - Calm light/dark themes and comfortable/compact density, persisted per browser
 - Deterministic navigation ordering and human-friendly display titles
+- Resizable Obsidian-style columns: a files column, the preview, and an add-ons
+  column. Drag the dividers to resize, double-click a divider to collapse a
+  column; widths and collapse state persist per browser.
+- An add-ons column with a CSS-snippet manager (the Obsidian snippet model):
+  add named snippets, toggle them on/off, and they apply live to the interface
 
 ## Navigation metadata
 
