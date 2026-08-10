@@ -4,8 +4,8 @@ const path = require('path');
 const { execSync } = require('child_process');
 
 // ─── Config ───
-const ROOT = process.argv[2] || 'D:\\faiththruphysics.com';
-const PORT = process.argv[3] || 3377;
+const ROOT = path.resolve(process.argv[2] || process.env.HTMLNOTE_ROOT || process.cwd());
+const PORT = process.argv[3] || process.env.HTMLNOTE_PORT || 3377;
 
 const NUMERIC_PREFIX = /^(\d+)[-_. ]+/;
 
@@ -148,9 +148,11 @@ function flattenTree(tree, result = []) {
 
 // ─── Rename file ───
 function renameFile(oldRel, newName) {
-  const oldFull = path.join(ROOT, oldRel);
+  const oldFull = path.resolve(ROOT, oldRel);
+  if (!oldFull.startsWith(ROOT + path.sep) && oldFull !== ROOT) return { error: 'Forbidden' };
   const dir = path.dirname(oldFull);
-  const newFull = path.join(dir, newName);
+  const newFull = path.resolve(dir, newName);
+  if (!newFull.startsWith(ROOT + path.sep) && newFull !== ROOT) return { error: 'Forbidden' };
   if (fs.existsSync(newFull)) return { error: 'Target already exists' };
   fs.renameSync(oldFull, newFull);
   return { ok: true, newPath: path.relative(ROOT, newFull).replace(/\\/g, '/') };
@@ -190,9 +192,9 @@ const server = http.createServer((req, res) => {
   if (url.pathname === '/api/file') {
     const relPath = url.searchParams.get('path');
     if (!relPath) { res.writeHead(400); res.end('Missing path'); return; }
-    const fullPath = path.join(ROOT, relPath);
+    const fullPath = path.resolve(ROOT, relPath);
     // Security: prevent traversal
-    if (!fullPath.startsWith(ROOT)) { res.writeHead(403); res.end('Forbidden'); return; }
+    if (!fullPath.startsWith(ROOT + path.sep) && fullPath !== ROOT) { res.writeHead(403); res.end('Forbidden'); return; }
     if (!fs.existsSync(fullPath)) { res.writeHead(404); res.end('Not found'); return; }
 
     const ext = path.extname(fullPath).toLowerCase();
