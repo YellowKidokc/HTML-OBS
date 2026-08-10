@@ -24,6 +24,20 @@
   --duration-medium: 250ms;
   --ease-standard: cubic-bezier(.4, 0, .2, 1);
 
+  /* Reading surface: content-font size is user-editable, chrome stays fixed. */
+  --reading-font-size: 15px;
+
+  /* Category accents — semantic, so they retint per theme instead of being
+     hardcoded once in the markup. Part of the documented theme surface. */
+  --cat-html: #2f6ae0;
+  --cat-md: #7c5cdf;
+  --cat-video: #d9660f;
+  --cat-audio: #1f9d4d;
+  --cat-image: #d63a86;
+  --cat-code: #b98600;
+  --cat-pdf: #d63333;
+  --cat-other: #8a877f;
+
   /* Compatibility/component aliases. Components never consume primitives. */
   --bg: var(--background-primary);
   --bg-sidebar: var(--background-secondary);
@@ -51,6 +65,14 @@
   --text-faint: #74726c;
   --border-subtle: #32322f;
   --accent-l: 67%;
+  --cat-html: #6d9cff;
+  --cat-md: #a78bfa;
+  --cat-video: #f97316;
+  --cat-audio: #22c55e;
+  --cat-image: #ec4899;
+  --cat-code: #facc15;
+  --cat-pdf: #ef4444;
+  --cat-other: #8f8c84;
   color-scheme: dark;
 }
 
@@ -79,6 +101,86 @@ body { background: var(--background-primary); }
 .appearance-controls { display: flex; gap: 4px; margin-left: auto; }
 .appearance-btn { width: 28px; height: 28px; padding: 0; border-radius: var(--radius-m); }
 .appearance-btn[aria-pressed="true"] { color: var(--interactive-accent); border-color: var(--interactive-accent); }
+
+/* ─── Appearance panel (Style-Settings-style whitelisted theming) ─── */
+#appearance-panel {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, .45);
+  z-index: 300;
+  align-items: flex-start;
+  justify-content: flex-end;
+}
+#appearance-panel.show { display: flex; }
+#appearance-panel .panel-box {
+  width: 320px;
+  max-width: 100vw;
+  height: 100vh;
+  overflow-y: auto;
+  background: var(--background-secondary);
+  border-left: 1px solid var(--border-subtle);
+  padding: 20px;
+  box-shadow: -8px 0 24px rgba(0, 0, 0, .25);
+}
+#appearance-panel h2 {
+  font-size: 15px;
+  color: var(--text-normal);
+  margin-bottom: 4px;
+}
+#appearance-panel .panel-hint {
+  font-size: 11px;
+  color: var(--text-faint);
+  margin-bottom: 16px;
+  line-height: 1.5;
+}
+.setting-group { margin-bottom: 18px; }
+.setting-group > label {
+  display: block;
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-bottom: 6px;
+  font-weight: 600;
+}
+.setting-group .value-out {
+  color: var(--text-faint);
+  font-weight: 400;
+  font-variant-numeric: tabular-nums;
+}
+.setting-group input[type="range"] { width: 100%; accent-color: var(--interactive-accent); }
+.setting-group select {
+  width: 100%;
+  padding: var(--control-padding);
+  background: var(--background-elevated);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-s);
+  color: var(--text-normal);
+  font: inherit;
+}
+.segmented { display: flex; gap: 4px; }
+.segmented button {
+  flex: 1;
+  padding: var(--control-padding);
+  background: var(--background-elevated);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-s);
+  color: var(--text-muted);
+  cursor: pointer;
+  font: inherit;
+  transition: color var(--duration-short) var(--ease-standard),
+              border-color var(--duration-short) var(--ease-standard);
+}
+.segmented button[aria-pressed="true"] {
+  color: var(--interactive-accent);
+  border-color: var(--interactive-accent);
+}
+.accent-swatch {
+  height: 24px;
+  border-radius: var(--radius-s);
+  margin-top: 8px;
+  background: var(--interactive-accent);
+  border: 1px solid var(--border-subtle);
+}
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto !important; transition-duration: 0.01ms !important; animation-duration: 0.01ms !important; }

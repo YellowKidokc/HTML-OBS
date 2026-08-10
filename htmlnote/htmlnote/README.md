@@ -63,6 +63,25 @@ token source. The runtime theme surface lives in `public/design-system.css`.
 Components consume semantic/component variables; user themes should override
 only the documented, non-structural semantic properties at `:root`.
 
+### Appearance panel (two-surface theming)
+
+The ⚙ button opens an appearance panel modeled on the "lock structure, expose
+cosmetics" pattern from VS Code and Obsidian. It edits a **whitelist** of
+semantic tokens only:
+
+- theme (`light` / `dark` / `contrast`) and density (`comfortable` / `compact`)
+- accent hue / saturation / lightness (`--accent-h/-s/-l`)
+- interface and reading font stacks (`--font-interface-theme`, `--font-text-theme`)
+- reading font size (`--reading-font-size`) and corner radius (`--radius-s/m/l`)
+
+The `ALLOWED_PROPS` set in `index.html` is the enforced boundary — any property
+outside it is refused before it reaches the DOM, so a custom look can recolor
+and re-space the reading surface but never move or break the interface.
+Selections persist per browser under the `htmlnote-appearance` key, and "Reset
+to defaults" removes every override so the stylesheet defaults (and the OS
+light/dark preference) take over again. Category accent colors are now theme
+tokens too, retinting automatically between light, dark, and high-contrast.
+
 ## Change the target folder
 
 Pass any path as the first argument:
