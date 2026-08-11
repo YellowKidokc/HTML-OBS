@@ -492,7 +492,7 @@
     <p>Select a file from the sidebar to preview it here. HTML files render live. Videos, audio, markdown, and images all work.</p>
   </div>
 
-  <iframe id="viewer-frame" style="display:none;" sandbox="allow-scripts allow-same-origin"></iframe>
+  <iframe id="viewer-frame" style="display:none;" sandbox="allow-scripts"></iframe>
   <div id="media-viewer"></div>
   <div id="markdown-viewer"></div>
 </div>
@@ -530,6 +530,7 @@
   let allFiles = [];
   let seriesData = {};
   let currentHtml = '';
+  let openFileRequest = 0;
   let editorDocument = null;
 
   // ─── Load tree ───
@@ -698,6 +699,7 @@
 
   // ─── Open file ───
   async function openFile(node) {
+    const request = ++openFileRequest;
     activeFile = node;
 
     const frame = document.getElementById('viewer-frame');
@@ -735,8 +737,10 @@
     const url = `${API}/api/file?path=${encodeURIComponent(node.path)}`;
 
     if (node.category === 'html') {
-      currentHtml = await fetch(url).then(response => response.text());
-      frame.srcdoc = currentHtml;
+      const html = await fetch(url).then(response => response.text());
+      if (request !== openFileRequest || activeFile?.path !== node.path) return;
+      currentHtml = html;
+      frame.srcdoc = html;
       frame.style.display = 'block';
       if (document.getElementById('editor-panel').classList.contains('open')) renderEditor();
     } else if (node.category === 'video') {
@@ -968,29 +972,38 @@
   function renderEditor() {
     const blocks = document.getElementById('editor-blocks'); blocks.innerHTML = '';
     if (!activeFile || activeFile.category !== 'html') { blocks.textContent = 'Select an HTML file to edit.'; return; }
+    const filePath = activeFile.path;
     editorDocument = new DOMParser().parseFromString(currentHtml, 'text/html');
     const sourceBlocks = [...editorDocument.querySelectorAll('h1,h2,p,div,section,table,img,blockquote')];
     sourceBlocks.forEach((source, index) => {
       const block = document.createElement('div'); block.className = 'editor-block';
       const tag = document.createElement('span'); tag.className = 'block-tag'; tag.textContent = `${source.tagName.toLowerCase()} · ${index + 1}`;
-      const editable = document.createElement('div'); editable.contentEditable = 'true';
-      editable.innerHTML = source.tagName === 'IMG' ? esc(source.getAttribute('src') || '') : source.innerHTML;
+      const editable = document.createElement(source.tagName === 'TABLE' ? 'textarea' : 'div');
+      if (source.tagName !== 'TABLE') editable.contentEditable = 'true';
+      if (source.tagName === 'TABLE') editable.value = source.innerHTML;
+      else editable.innerHTML = source.tagName === 'IMG' ? esc(source.getAttribute('src') || '') : source.innerHTML;
       editable.addEventListener('blur', async () => {
-        if (source.tagName === 'IMG') source.setAttribute('src', editable.textContent.trim()); else source.innerHTML = editable.innerHTML;
-        await saveCurrentDocument(); renderEditor();
+        if (activeFile?.path !== filePath) return;
+        if (source.tagName === 'IMG') source.setAttribute('src', editable.textContent.trim());
+        else source.innerHTML = source.tagName === 'TABLE' ? editable.value : editable.innerHTML;
+        await saveDocument(filePath, editorDocument); renderEditor();
       });
       block.append(tag, editable); blocks.appendChild(block);
     });
   }
 
-  async function saveCurrentDocument() {
-    if (!activeFile || !editorDocument) return;
-    currentHtml = '<!DOCTYPE html>\n' + editorDocument.documentElement.outerHTML;
+  async function saveDocument(filePath, documentToSave) {
+    if (!filePath || !documentToSave) return;
+    const html = '<!DOCTYPE html>\n' + documentToSave.documentElement.outerHTML;
     const status = document.getElementById('editor-status'); status.textContent = 'Saving…';
-    const response = await fetch(`${API}/api/save`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ path:activeFile.path, content:currentHtml }) });
+    const response = await fetch(`${API}/api/save`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ path:filePath, content:html }) });
     status.textContent = response.ok ? 'Saved' : 'Save failed';
     if (!response.ok) throw new Error((await response.json()).error || 'Save failed');
-    document.getElementById('viewer-frame').srcdoc = currentHtml;
+    if (activeFile?.path === filePath) {
+      currentHtml = html;
+      editorDocument = documentToSave;
+      document.getElementById('viewer-frame').srcdoc = html;
+    }
   }
 
   document.getElementById('btn-edit').addEventListener('click', () => {
@@ -1011,31 +1024,43 @@
     deepseek: { url:'https://api.deepseek.com/chat/completions', model:'deepseek-chat' },
     ollama: { url:'http://localhost:11434/api/chat', model:'llama3.2' }
   };
+  const providerKeys = new Map();
+  Object.keys(providerDefaults).forEach(provider => localStorage.removeItem(`htmlnote-ai-${provider}-key`));
   function providerSettings() {
     const provider = document.getElementById('ai-provider').value, defaults = providerDefaults[provider];
-    return { provider, key:localStorage.getItem(`htmlnote-ai-${provider}-key`) || '', url:localStorage.getItem(`htmlnote-ai-${provider}-url`) || defaults.url, model:localStorage.getItem(`htmlnote-ai-${provider}-model`) || defaults.model };
+    return { provider, key:providerKeys.get(provider) || '', url:localStorage.getItem(`htmlnote-ai-${provider}-url`) || defaults.url, model:localStorage.getItem(`htmlnote-ai-${provider}-model`) || defaults.model };
   }
   function showProviderSettings() { const settings=providerSettings(); document.getElementById('provider-key').value=settings.key; document.getElementById('provider-url').value=settings.url; document.getElementById('provider-model').value=settings.model; }
   document.getElementById('ai-provider').addEventListener('change', showProviderSettings);
   document.getElementById('ai-settings').addEventListener('click', () => { document.getElementById('provider-settings').classList.toggle('show'); showProviderSettings(); });
-  ['key','url','model'].forEach(field => document.getElementById(`provider-${field}`).addEventListener('change', event => localStorage.setItem(`htmlnote-ai-${document.getElementById('ai-provider').value}-${field}`, event.target.value)));
+  ['key','url','model'].forEach(field => document.getElementById(`provider-${field}`).addEventListener('change', event => {
+    const provider = document.getElementById('ai-provider').value;
+    if (field === 'key') providerKeys.set(provider, event.target.value);
+    else localStorage.setItem(`htmlnote-ai-${provider}-${field}`, event.target.value);
+  }));
   function chatMessage(role, text) { const message=document.createElement('div'); message.className=`chat-message ${role}`; message.textContent=text; document.getElementById('chat-history').appendChild(message); message.scrollIntoView(); return message; }
   document.getElementById('chat-form').addEventListener('submit', async event => {
     event.preventDefault(); const input=document.getElementById('chat-input'); const prompt=input.value.trim(); if (!prompt || !activeFile || activeFile.category !== 'html') return;
+    const filePath=activeFile.path, sourceHtml=currentHtml;
     input.value=''; chatMessage('user', prompt); const pending=chatMessage('assistant','Thinking…');
-    try { const text=await callAI(prompt); pending.textContent=text; await appendAIHtml(text); } catch(error) { pending.textContent=`Error: ${error.message}`; }
+    try {
+      const text=await callAI(prompt, filePath, sourceHtml);
+      if (activeFile?.path !== filePath) throw new Error('The active file changed; response was not applied');
+      pending.textContent=text; await appendAIHtml(text, filePath, sourceHtml);
+    } catch(error) { pending.textContent=`Error: ${error.message}`; }
   });
-  async function callAI(prompt) {
-    const settings=providerSettings(), context=`Current file (${activeFile.path}):\n${currentHtml}\n\nRequest: ${prompt}`;
+  async function callAI(prompt, filePath, sourceHtml) {
+    const settings=providerSettings(), context=`Current file (${filePath}):\n${sourceHtml}\n\nRequest: ${prompt}`;
     let headers={'Content-Type':'application/json'}, body;
     if (settings.provider === 'anthropic') { if(settings.key){headers['x-api-key']=settings.key;headers['anthropic-version']='2023-06-01';} body={model:settings.model,max_tokens:4096,messages:[{role:'user',content:context}]}; }
     else { if(settings.key) headers.Authorization=`Bearer ${settings.key}`; body={model:settings.model,messages:[{role:'user',content:context}],stream:false}; }
     const response=await fetch(settings.url,{method:'POST',headers,body:JSON.stringify(body)}); if(!response.ok) throw new Error(`Provider returned ${response.status}`);
     const data=await response.json(); return settings.provider === 'anthropic' ? data.content?.map(item=>item.text||'').join('') : settings.provider === 'ollama' ? data.message?.content : data.choices?.[0]?.message?.content;
   }
-  async function appendAIHtml(text) {
+  async function appendAIHtml(text, filePath, sourceHtml) {
     const fenced=text.match(/```html\s*([\s\S]*?)```/i); const candidate=(fenced?.[1] || (/<[a-z][\s\S]*>/i.test(text) ? text : '')).trim(); if(!candidate) return;
-    editorDocument=new DOMParser().parseFromString(currentHtml,'text/html'); editorDocument.body.insertAdjacentHTML('beforeend',candidate); await saveCurrentDocument(); if(document.getElementById('editor-panel').classList.contains('open')) renderEditor();
+    if (activeFile?.path !== filePath) throw new Error('The active file changed; response was not applied');
+    const documentToSave=new DOMParser().parseFromString(sourceHtml,'text/html'); documentToSave.body.insertAdjacentHTML('beforeend',candidate); await saveDocument(filePath, documentToSave); if(document.getElementById('editor-panel').classList.contains('open')) renderEditor();
   }
 
   // ─── Init ───
