@@ -15,10 +15,32 @@ function readJson(file) {
 }
 
 function resolveInRoot(relPath) {
-  const root = path.resolve(ROOT);
-  const target = path.resolve(root, relPath || '.');
+  const root = fs.realpathSync(path.resolve(ROOT));
+  const lexicalTarget = path.resolve(root, relPath || '.');
+  if (lexicalTarget !== root && !lexicalTarget.startsWith(root + path.sep)) return null;
+
+  // realpath follows symlinks, so containment is checked against the location
+  // that will actually be read or written rather than only its lexical name.
+  let target;
+  try {
+    target = fs.realpathSync(lexicalTarget);
+  } catch (error) {
+    if (error.code !== 'ENOENT') return null;
+    try {
+      target = path.join(fs.realpathSync(path.dirname(lexicalTarget)), path.basename(lexicalTarget));
+    } catch { return null; }
+  }
   if (target !== root && !target.startsWith(root + path.sep)) return null;
   return target;
+}
+
+function isTrustedWrite(req) {
+  const origin = req.headers.origin;
+  if (!origin) return true; // Preserve CLI/native-client access.
+  try {
+    const parsed = new URL(origin);
+    return parsed.protocol === 'http:' && parsed.host === req.headers.host;
+  } catch { return false; }
 }
 
 function readBody(req, callback) {
@@ -196,11 +218,14 @@ function renderMarkdown(text) {
 const server = http.createServer((req, res) => {
   const url = new URL(req.url, `http://localhost:${PORT}`);
 
-  // CORS
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-  if (req.method === 'OPTIONS') { res.writeHead(200); res.end(); return; }
+  // This service can modify local files, so it deliberately does not enable
+  // cross-origin API access. Same-origin browser requests need no CORS headers.
+  if (req.method === 'OPTIONS') { res.writeHead(204); res.end(); return; }
+
+  if (req.method === 'POST' && !isTrustedWrite(req)) {
+    json(res, 403, { error: 'Cross-origin writes are forbidden' });
+    return;
+  }
 
   // API routes
   if (url.pathname === '/api/tree') {
@@ -212,7 +237,8 @@ const server = http.createServer((req, res) => {
   }
 
   if (url.pathname === '/api/series') {
-    const sidecar = path.join(path.resolve(ROOT), '_htmlnote.json');
+    const sidecar = resolveInRoot('_htmlnote.json');
+    if (!sidecar) { json(res, 403, { error: 'Invalid sidecar path' }); return; }
     if (req.method === 'GET') {
       json(res, 200, { series: readJson(sidecar).series || {} });
       return;
