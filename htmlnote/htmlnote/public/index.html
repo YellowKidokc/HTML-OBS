@@ -404,6 +404,37 @@
     font-family: var(--font-mono);
     font-size: 13px;
   }
+
+  /* ─── Series and workspace panels ─── */
+  .sidebar-tabs { display:flex; border-bottom:1px solid var(--border); }
+  .sidebar-tab { flex:1; padding:8px; border:0; color:var(--text-dim); background:transparent; cursor:pointer; }
+  .sidebar-tab.active { color:var(--text-bright); border-bottom:2px solid var(--accent); }
+  #series-container { display:none; flex:1; overflow:auto; padding:10px; }
+  .series-card { border:1px solid var(--border); border-radius:6px; margin-bottom:10px; overflow:hidden; }
+  .series-title { padding:8px 10px; font-weight:600; border-left:4px solid var(--series-color); }
+  .series-file { display:flex; gap:7px; align-items:center; padding:7px 10px; cursor:pointer; font-size:12px; }
+  .series-file:hover, .series-file.drag-over { background:var(--bg-hover); }
+  .drag-handle { cursor:grab; color:var(--text-dim); font-size:16px; }
+  #workspace { flex:1; min-width:0; display:flex; overflow:hidden; }
+  #main { min-width:0; }
+  #right-panels { display:flex; height:100vh; flex-shrink:0; }
+  .right-panel { width:360px; background:var(--bg-sidebar); border-left:1px solid var(--border); display:none; flex-direction:column; }
+  .right-panel.open { display:flex; }
+  .panel-header { padding:10px 12px; min-height:44px; border-bottom:1px solid var(--border); display:flex; align-items:center; gap:8px; }
+  .panel-header strong { flex:1; }
+  #editor-blocks, #chat-history { flex:1; overflow:auto; padding:12px; }
+  .editor-block { border:1px solid var(--border); border-radius:5px; margin-bottom:8px; padding:8px; }
+  .editor-block:focus { outline:1px solid var(--accent); }
+  .block-tag { display:block; font:10px var(--font-mono); color:var(--text-dim); margin-bottom:5px; }
+  .chat-message { padding:8px; margin-bottom:8px; border-radius:6px; white-space:pre-wrap; font-size:12px; }
+  .chat-message.user { background:var(--bg-active); }
+  .chat-message.assistant { border:1px solid var(--border); }
+  #chat-form { padding:10px; border-top:1px solid var(--border); display:flex; gap:7px; }
+  #chat-input { flex:1; resize:none; min-height:54px; background:var(--bg); color:var(--text); border:1px solid var(--border); padding:7px; }
+  .provider-settings { padding:10px; border-bottom:1px solid var(--border); display:none; }
+  .provider-settings.show { display:grid; gap:6px; }
+  .provider-settings input { width:100%; background:var(--bg); color:var(--text); border:1px solid var(--border); padding:6px; }
+  .save-status { font-size:11px; color:var(--text-dim); }
 </style>
 <link rel="stylesheet" href="/design-system.css">
 </head>
@@ -436,16 +467,21 @@
     </div>
   </div>
 
+  <div class="sidebar-tabs"><button class="sidebar-tab active" data-side-tab="files">Files</button><button class="sidebar-tab" data-side-tab="series">Series</button></div>
   <div id="tree-container"></div>
+  <div id="series-container"></div>
 
   <div id="counts-bar"></div>
 </div>
 
 <!-- Main -->
+<div id="workspace">
 <div id="main">
   <div id="viewer-header" style="display:none;">
     <span class="file-path" id="current-path"></span>
     <select class="version-select" id="version-select" style="display:none;"></select>
+    <button class="header-btn" id="btn-edit">Edit</button>
+    <button class="header-btn" id="btn-ai">AI</button>
     <button class="header-btn" id="btn-rename">Rename</button>
     <button class="header-btn" id="btn-open-folder">Open folder</button>
     <button class="header-btn" id="btn-refresh">↻ Refresh</button>
@@ -459,6 +495,11 @@
   <iframe id="viewer-frame" style="display:none;" sandbox="allow-scripts allow-same-origin"></iframe>
   <div id="media-viewer"></div>
   <div id="markdown-viewer"></div>
+</div>
+<div id="right-panels">
+  <aside class="right-panel" id="editor-panel"><div class="panel-header"><strong>Content editor</strong><span class="save-status" id="editor-status"></span><button class="header-btn" data-close="editor-panel">×</button></div><div id="editor-blocks"></div></aside>
+  <aside class="right-panel" id="ai-panel"><div class="panel-header"><select id="ai-provider"><option value="anthropic">Claude</option><option value="openai">OpenAI</option><option value="deepseek">DeepSeek</option><option value="ollama">Ollama</option></select><button class="header-btn" id="ai-settings" title="Provider settings">⚙</button><button class="header-btn" data-close="ai-panel">×</button></div><div class="provider-settings" id="provider-settings"><label>API key<input id="provider-key" type="password" autocomplete="off"></label><label>API URL<input id="provider-url"></label><label>Model<input id="provider-model"></label></div><div id="chat-history"></div><form id="chat-form"><textarea id="chat-input" placeholder="Ask AI to change this document…"></textarea><button class="header-btn">Send</button></form></aside>
+</div>
 </div>
 
 <!-- Rename modal -->
@@ -487,6 +528,9 @@
   let activeFile = null;
   let contextTarget = null;
   let allFiles = [];
+  let seriesData = {};
+  let currentHtml = '';
+  let editorDocument = null;
 
   // ─── Load tree ───
   async function loadTree() {
@@ -653,7 +697,7 @@
   }
 
   // ─── Open file ───
-  function openFile(node) {
+  async function openFile(node) {
     activeFile = node;
 
     const frame = document.getElementById('viewer-frame');
@@ -691,8 +735,10 @@
     const url = `${API}/api/file?path=${encodeURIComponent(node.path)}`;
 
     if (node.category === 'html') {
-      frame.src = url;
+      currentHtml = await fetch(url).then(response => response.text());
+      frame.srcdoc = currentHtml;
       frame.style.display = 'block';
+      if (document.getElementById('editor-panel').classList.contains('open')) renderEditor();
     } else if (node.category === 'video') {
       media.innerHTML = `<video controls src="${url}"></video>`;
       media.style.display = 'flex';
@@ -859,6 +905,139 @@
     }
   });
 
+
+  // ─── Series sidecars ───
+  async function loadSeries() {
+    try {
+      const response = await fetch(`${API}/api/series`);
+      if (!response.ok) throw new Error('Could not load series');
+      seriesData = (await response.json()).series || {};
+      renderSeries();
+    } catch (error) { document.getElementById('series-container').textContent = error.message; }
+  }
+
+  async function saveSeries() {
+    const response = await fetch(`${API}/api/series`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ series: seriesData })
+    });
+    if (!response.ok) throw new Error((await response.json()).error || 'Series save failed');
+  }
+
+  function renderSeries() {
+    const container = document.getElementById('series-container');
+    container.innerHTML = '';
+    for (const [id, series] of Object.entries(seriesData)) {
+      const card = document.createElement('section');
+      card.className = 'series-card';
+      card.style.setProperty('--series-color', series.color || 'var(--accent)');
+      card.innerHTML = `<div class="series-title">${esc(series.icon || '◆')} ${esc(series.name || id)}</div>`;
+      [...(series.files || [])].sort((a, b) => a.order - b.order).forEach((entry, index) => {
+        const row = document.createElement('div');
+        row.className = 'series-file'; row.draggable = true; row.dataset.index = index;
+        row.innerHTML = `<span class="drag-handle" title="Drag to reorder">⠿</span><span>${esc(entry.path)}</span>`;
+        row.addEventListener('click', () => { const file = allFiles.find(item => item.path === entry.path); if (file) openFile(file); });
+        row.addEventListener('dragstart', event => event.dataTransfer.setData('text/plain', index));
+        row.addEventListener('dragover', event => { event.preventDefault(); row.classList.add('drag-over'); });
+        row.addEventListener('dragleave', () => row.classList.remove('drag-over'));
+        row.addEventListener('drop', async event => {
+          event.preventDefault();
+          const from = Number(event.dataTransfer.getData('text/plain'));
+          const ordered = [...series.files].sort((a, b) => a.order - b.order);
+          const [moved] = ordered.splice(from, 1); ordered.splice(index, 0, moved);
+          series.files = ordered.map((file, order) => ({ path: file.path, order }));
+          renderSeries();
+          try { await saveSeries(); } catch (error) { alert(error.message); }
+        });
+        card.appendChild(row);
+      });
+      container.appendChild(card);
+    }
+    if (!container.children.length) container.innerHTML = '<p class="save-status">No series are defined in the root _htmlnote.json.</p>';
+  }
+
+  document.querySelectorAll('[data-side-tab]').forEach(button => button.addEventListener('click', () => {
+    document.querySelectorAll('[data-side-tab]').forEach(tab => tab.classList.toggle('active', tab === button));
+    const showSeries = button.dataset.sideTab === 'series';
+    document.getElementById('tree-container').style.display = showSeries ? 'none' : 'block';
+    document.getElementById('counts-bar').style.display = showSeries ? 'none' : 'flex';
+    document.getElementById('series-container').style.display = showSeries ? 'block' : 'none';
+  }));
+
+  // ─── Inline content editor ───
+  function renderEditor() {
+    const blocks = document.getElementById('editor-blocks'); blocks.innerHTML = '';
+    if (!activeFile || activeFile.category !== 'html') { blocks.textContent = 'Select an HTML file to edit.'; return; }
+    editorDocument = new DOMParser().parseFromString(currentHtml, 'text/html');
+    const sourceBlocks = [...editorDocument.querySelectorAll('h1,h2,p,div,section,table,img,blockquote')];
+    sourceBlocks.forEach((source, index) => {
+      const block = document.createElement('div'); block.className = 'editor-block';
+      const tag = document.createElement('span'); tag.className = 'block-tag'; tag.textContent = `${source.tagName.toLowerCase()} · ${index + 1}`;
+      const editable = document.createElement('div'); editable.contentEditable = 'true';
+      editable.innerHTML = source.tagName === 'IMG' ? esc(source.getAttribute('src') || '') : source.innerHTML;
+      editable.addEventListener('blur', async () => {
+        if (source.tagName === 'IMG') source.setAttribute('src', editable.textContent.trim()); else source.innerHTML = editable.innerHTML;
+        await saveCurrentDocument(); renderEditor();
+      });
+      block.append(tag, editable); blocks.appendChild(block);
+    });
+  }
+
+  async function saveCurrentDocument() {
+    if (!activeFile || !editorDocument) return;
+    currentHtml = '<!DOCTYPE html>\n' + editorDocument.documentElement.outerHTML;
+    const status = document.getElementById('editor-status'); status.textContent = 'Saving…';
+    const response = await fetch(`${API}/api/save`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ path:activeFile.path, content:currentHtml }) });
+    status.textContent = response.ok ? 'Saved' : 'Save failed';
+    if (!response.ok) throw new Error((await response.json()).error || 'Save failed');
+    document.getElementById('viewer-frame').srcdoc = currentHtml;
+  }
+
+  document.getElementById('btn-edit').addEventListener('click', () => {
+    const panel = document.getElementById('editor-panel'); panel.classList.toggle('open');
+    document.getElementById('btn-edit').textContent = panel.classList.contains('open') ? 'Preview' : 'Edit';
+    if (panel.classList.contains('open')) renderEditor();
+  });
+  document.getElementById('btn-ai').addEventListener('click', () => document.getElementById('ai-panel').classList.toggle('open'));
+  document.querySelectorAll('[data-close]').forEach(button => button.addEventListener('click', () => {
+    document.getElementById(button.dataset.close).classList.remove('open');
+    if (button.dataset.close === 'editor-panel') document.getElementById('btn-edit').textContent = 'Edit';
+  }));
+
+  // ─── AI builder ───
+  const providerDefaults = {
+    anthropic: { url:'https://api.anthropic.com/v1/messages', model:'claude-sonnet-4-20250514' },
+    openai: { url:'https://api.openai.com/v1/chat/completions', model:'gpt-4o-mini' },
+    deepseek: { url:'https://api.deepseek.com/chat/completions', model:'deepseek-chat' },
+    ollama: { url:'http://localhost:11434/api/chat', model:'llama3.2' }
+  };
+  function providerSettings() {
+    const provider = document.getElementById('ai-provider').value, defaults = providerDefaults[provider];
+    return { provider, key:localStorage.getItem(`htmlnote-ai-${provider}-key`) || '', url:localStorage.getItem(`htmlnote-ai-${provider}-url`) || defaults.url, model:localStorage.getItem(`htmlnote-ai-${provider}-model`) || defaults.model };
+  }
+  function showProviderSettings() { const settings=providerSettings(); document.getElementById('provider-key').value=settings.key; document.getElementById('provider-url').value=settings.url; document.getElementById('provider-model').value=settings.model; }
+  document.getElementById('ai-provider').addEventListener('change', showProviderSettings);
+  document.getElementById('ai-settings').addEventListener('click', () => { document.getElementById('provider-settings').classList.toggle('show'); showProviderSettings(); });
+  ['key','url','model'].forEach(field => document.getElementById(`provider-${field}`).addEventListener('change', event => localStorage.setItem(`htmlnote-ai-${document.getElementById('ai-provider').value}-${field}`, event.target.value)));
+  function chatMessage(role, text) { const message=document.createElement('div'); message.className=`chat-message ${role}`; message.textContent=text; document.getElementById('chat-history').appendChild(message); message.scrollIntoView(); return message; }
+  document.getElementById('chat-form').addEventListener('submit', async event => {
+    event.preventDefault(); const input=document.getElementById('chat-input'); const prompt=input.value.trim(); if (!prompt || !activeFile || activeFile.category !== 'html') return;
+    input.value=''; chatMessage('user', prompt); const pending=chatMessage('assistant','Thinking…');
+    try { const text=await callAI(prompt); pending.textContent=text; await appendAIHtml(text); } catch(error) { pending.textContent=`Error: ${error.message}`; }
+  });
+  async function callAI(prompt) {
+    const settings=providerSettings(), context=`Current file (${activeFile.path}):\n${currentHtml}\n\nRequest: ${prompt}`;
+    let headers={'Content-Type':'application/json'}, body;
+    if (settings.provider === 'anthropic') { if(settings.key){headers['x-api-key']=settings.key;headers['anthropic-version']='2023-06-01';} body={model:settings.model,max_tokens:4096,messages:[{role:'user',content:context}]}; }
+    else { if(settings.key) headers.Authorization=`Bearer ${settings.key}`; body={model:settings.model,messages:[{role:'user',content:context}],stream:false}; }
+    const response=await fetch(settings.url,{method:'POST',headers,body:JSON.stringify(body)}); if(!response.ok) throw new Error(`Provider returned ${response.status}`);
+    const data=await response.json(); return settings.provider === 'anthropic' ? data.content?.map(item=>item.text||'').join('') : settings.provider === 'ollama' ? data.message?.content : data.choices?.[0]?.message?.content;
+  }
+  async function appendAIHtml(text) {
+    const fenced=text.match(/```html\s*([\s\S]*?)```/i); const candidate=(fenced?.[1] || (/<[a-z][\s\S]*>/i.test(text) ? text : '')).trim(); if(!candidate) return;
+    editorDocument=new DOMParser().parseFromString(currentHtml,'text/html'); editorDocument.body.insertAdjacentHTML('beforeend',candidate); await saveCurrentDocument(); if(document.getElementById('editor-panel').classList.contains('open')) renderEditor();
+  }
+
   // ─── Init ───
   const savedTheme = localStorage.getItem('htmlnote-theme') ||
     (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
@@ -887,7 +1066,7 @@
     applyAppearance(document.documentElement.dataset.theme, density);
   });
 
-  loadTree();
+  Promise.all([loadTree(), loadSeries()]);
 </script>
 
 </body>
