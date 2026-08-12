@@ -1,0 +1,13 @@
+.venv/
+__pycache__/
+*.pyc
+.env
+data/atlas.db
+data/sources/
+data/canonical/
+data/exports/
+data/rendered/
+data/receipts/
+data/backups/
+data/logs/
+.pytest_cache/
