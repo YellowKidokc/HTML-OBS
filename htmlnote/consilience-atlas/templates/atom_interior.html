@@ -1,0 +1,34 @@
+<!-- Atom dossier / interior. -->
+<meta charset="utf-8">
+<title>Atom {{ atom.atom_id }}</title>
+<style>
+  body { font-family: system-ui, sans-serif; margin:24px; background:#0f1115; color:#e6e6e6; }
+  h2 { font-size:16px; border-bottom:1px solid #333; padding-bottom:4px; }
+  .src { background:#1a1d24; border-left:3px solid #55a868; padding:10px; white-space:pre-wrap; }
+  table { border-collapse:collapse; } td,th { padding:3px 10px; text-align:left; font-size:13px; }
+  .muted { color:#888; }
+</style>
+<h1>{{ atom.label or atom.atom_id }}</h1>
+<p class="muted">{{ atom.atom_id }} · chars {{ atom.start_pos }}–{{ atom.end_pos }}
+   {% if atom.frozen %}· <b>FROZEN</b>{% endif %}</p>
+
+<h2>Source</h2>
+<div class="src">{{ atom.text }}</div>
+
+<h2>Classification (15-marker axes)</h2>
+<table>
+{% for k, v in classification.items() %}
+  <tr><th>{{ k }}</th><td>{{ v }}</td></tr>
+{% endfor %}
+</table>
+
+<h2>Provenance</h2>
+<p class="muted">AI inference is labelled as such; confidence is uncertainty, not truth.</p>
+<pre>{{ provenance }}</pre>
+
+<h2>Audit</h2>
+{% if audits %}<ul>{% for x in audits %}<li>[{{ x.category }}] {{ x.note }}</li>{% endfor %}</ul>
+{% else %}<p class="muted">No audit entries yet.</p>{% endif %}
+
+<h2>History (events)</h2>
+<ul>{% for e in events %}<li>{{ e.created_at }} — {{ e.kind }}</li>{% endfor %}</ul>
