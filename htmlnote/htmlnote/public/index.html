@@ -42,7 +42,7 @@
   /* ─── Sidebar ─── */
   #sidebar {
     width: 300px;
-    min-width: 300px;
+    min-width: 180px;
     background: var(--bg-sidebar);
     border-right: 1px solid var(--border);
     display: flex;
@@ -449,6 +449,8 @@
         <button class="header-btn appearance-btn" data-theme-choice="light" aria-label="Light theme" title="Light theme">☀</button>
         <button class="header-btn appearance-btn" data-theme-choice="dark" aria-label="Dark theme" title="Dark theme">◐</button>
         <button class="header-btn appearance-btn" id="density-toggle" aria-label="Toggle compact density" title="Toggle density">≡</button>
+        <button class="header-btn appearance-btn" id="theme-open" aria-label="Customize theme" title="Customize theme">⚙</button>
+        <button class="header-btn appearance-btn" id="addons-toggle" aria-label="Toggle add-ons panel" title="Toggle add-ons panel">◨</button>
       </div>
     </div>
     <div class="root-path" id="root-path">loading...</div>
@@ -473,6 +475,9 @@
 
   <div id="counts-bar"></div>
 </div>
+
+<!-- Resizer between files column and preview -->
+<div class="pane-resizer" id="resizer-left" data-target="sidebar" title="Drag to resize · double-click to collapse"></div>
 
 <!-- Main -->
 <div id="workspace">
@@ -502,6 +507,19 @@
 </div>
 </div>
 
+<!-- Resizer between preview and add-ons column -->
+<div class="pane-resizer" id="resizer-right" data-target="addons" data-invert="1" title="Drag to resize · double-click to collapse"></div>
+
+<!-- Add-ons / scripts column (Obsidian-style CSS snippet manager) -->
+<aside id="addons" aria-label="Add-ons">
+  <header>
+    <h2>Add-ons</h2>
+    <button class="header-btn" id="addon-new" title="New CSS snippet">+ Snippet</button>
+  </header>
+  <div class="panel-body" id="addons-body"></div>
+  <div class="addons-foot">CSS snippets style the HTMLNote interface (not the previewed page), Obsidian-style. Enabled snippets apply live and persist per browser.</div>
+</aside>
+
 <!-- Rename modal -->
 <div id="rename-modal">
   <div class="modal-box">
@@ -513,6 +531,22 @@
     </div>
   </div>
 </div>
+
+<!-- Theming panel (Surface 2: cosmetic, whitelisted semantic tokens) -->
+<div id="theme-backdrop"></div>
+<aside id="theme-panel" aria-label="Theme customization">
+  <header>
+    <h2>Customize theme</h2>
+    <button class="header-btn" id="theme-close" aria-label="Close">✕</button>
+  </header>
+  <div class="panel-body" id="theme-panel-body"></div>
+  <div class="panel-actions">
+    <button class="header-btn" id="theme-reset">Reset</button>
+    <button class="header-btn" id="theme-export">Export</button>
+    <button class="header-btn" id="theme-import">Import</button>
+    <input type="file" id="theme-import-input" accept="application/json,.json" hidden>
+  </div>
+</aside>
 
 <!-- Context menu -->
 <div id="context-menu">
@@ -1068,6 +1102,8 @@
 
   Promise.all([loadTree(), loadSeries()]);
 </script>
+<script src="/theming.js"></script>
+<script src="/panels.js"></script>
 
 </body>
 </html>
