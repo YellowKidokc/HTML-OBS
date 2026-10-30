@@ -5,28 +5,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>HTMLNote</title>
 <style>
-  :root {
-    --bg: #1a1a1e;
-    --bg-sidebar: #141416;
-    --bg-hover: #2a2a2e;
-    --bg-active: #333338;
-    --text: #d4d4d8;
-    --text-dim: #71717a;
-    --text-bright: #fafafa;
-    --accent: #6d9cff;
-    --accent-dim: #4a6fb0;
-    --border: #27272a;
-    --cat-html: #6d9cff;
-    --cat-md: #a78bfa;
-    --cat-video: #f97316;
-    --cat-audio: #22c55e;
-    --cat-image: #ec4899;
-    --cat-code: #facc15;
-    --cat-pdf: #ef4444;
-    --cat-other: #71717a;
-    --font-sans: 'Segoe UI', system-ui, -apple-system, sans-serif;
-    --font-mono: 'Cascadia Code', 'Fira Code', 'Consolas', monospace;
-  }
+  /* All theme tokens (colors, fonts, category accents) live in
+     /design-system.css — the single, theme-aware, user-editable surface.
+     This stylesheet only consumes them; it never redefines the palette. */
 
   * { margin: 0; padding: 0; box-sizing: border-box; }
 
@@ -390,7 +371,8 @@
     overflow-y: auto;
     color: var(--text);
     line-height: 1.7;
-    font-size: 15px;
+    font-size: var(--reading-font-size);
+    font-family: var(--font-text-theme, var(--font-sans));
     max-width: 800px;
   }
 
@@ -449,6 +431,7 @@
         <button class="header-btn appearance-btn" data-theme-choice="light" aria-label="Light theme" title="Light theme">☀</button>
         <button class="header-btn appearance-btn" data-theme-choice="dark" aria-label="Dark theme" title="Dark theme">◐</button>
         <button class="header-btn appearance-btn" id="density-toggle" aria-label="Toggle compact density" title="Toggle density">≡</button>
+        <button class="header-btn appearance-btn" id="appearance-open" aria-label="Appearance settings" title="Appearance settings">⚙</button>
       </div>
     </div>
     <div class="root-path" id="root-path">loading...</div>
@@ -510,6 +493,72 @@
     <div class="modal-actions">
       <button class="header-btn" id="rename-cancel">Cancel</button>
       <button class="header-btn" id="rename-confirm" style="background:var(--accent-dim);">Rename</button>
+    </div>
+  </div>
+</div>
+
+<!-- Appearance panel: writes ONLY to whitelisted semantic tokens -->
+<div id="appearance-panel">
+  <div class="panel-box" role="dialog" aria-label="Appearance settings">
+    <h2>Appearance</h2>
+    <p class="panel-hint">These controls edit documented theme tokens only. Layout and structure stay fixed, so a custom look can never break the interface.</p>
+
+    <div class="setting-group">
+      <label>Theme</label>
+      <div class="segmented" id="set-theme">
+        <button data-theme-choice="light">Light</button>
+        <button data-theme-choice="dark">Dark</button>
+        <button data-theme-choice="contrast">Contrast</button>
+      </div>
+    </div>
+
+    <div class="setting-group">
+      <label>Density</label>
+      <div class="segmented" id="set-density">
+        <button data-density-choice="comfortable">Comfortable</button>
+        <button data-density-choice="compact">Compact</button>
+      </div>
+    </div>
+
+    <div class="setting-group">
+      <label>Accent hue <span class="value-out" id="out-accent-h"></span></label>
+      <input type="range" id="set-accent-h" min="0" max="360" step="1">
+      <div class="accent-swatch"></div>
+    </div>
+
+    <div class="setting-group">
+      <label>Accent saturation <span class="value-out" id="out-accent-s"></span></label>
+      <input type="range" id="set-accent-s" min="0" max="100" step="1">
+    </div>
+
+    <div class="setting-group">
+      <label>Accent lightness <span class="value-out" id="out-accent-l"></span></label>
+      <input type="range" id="set-accent-l" min="20" max="80" step="1">
+    </div>
+
+    <div class="setting-group">
+      <label>Interface font</label>
+      <select id="set-font-interface"></select>
+    </div>
+
+    <div class="setting-group">
+      <label>Reading font</label>
+      <select id="set-font-text"></select>
+    </div>
+
+    <div class="setting-group">
+      <label>Reading size <span class="value-out" id="out-reading-size"></span></label>
+      <input type="range" id="set-reading-size" min="13" max="20" step="1">
+    </div>
+
+    <div class="setting-group">
+      <label>Corner radius <span class="value-out" id="out-radius"></span></label>
+      <input type="range" id="set-radius" min="0" max="16" step="1">
+    </div>
+
+    <div class="modal-actions">
+      <button class="header-btn" id="appearance-reset">Reset to defaults</button>
+      <button class="header-btn" id="appearance-close" style="background:var(--accent-dim);">Done</button>
     </div>
   </div>
 </div>
@@ -905,6 +954,15 @@
     }
   });
 
+  // ─── Appearance: two-surface theming ───
+  // Structure/layout tokens are locked. The panel may only write the semantic
+  // tokens listed here — everything else is off-limits, so a user theme can
+  // recolor and re-space the reading surface but never break the interface.
+  const ALLOWED_PROPS = new Set([
+    '--accent-h', '--accent-s', '--accent-l',
+    '--font-interface-theme', '--font-text-theme',
+    '--reading-font-size', '--radius-s', '--radius-m', '--radius-l'
+  ]);
 
   // ─── Series sidecars ───
   async function loadSeries() {
@@ -1038,34 +1096,148 @@
     editorDocument=new DOMParser().parseFromString(currentHtml,'text/html'); editorDocument.body.insertAdjacentHTML('beforeend',candidate); await saveCurrentDocument(); if(document.getElementById('editor-panel').classList.contains('open')) renderEditor();
   }
 
-  // ─── Init ───
-  const savedTheme = localStorage.getItem('htmlnote-theme') ||
-    (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
-  const savedDensity = localStorage.getItem('htmlnote-density') || 'comfortable';
-  applyAppearance(savedTheme, savedDensity);
+  const FONT_STACKS = {
+    system: 'ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+    geist: '"Geist", "Inter", ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+    serif: '"Lyon-Text", Georgia, ui-serif, Cambria, serif',
+    mono: 'ui-monospace, "SFMono-Regular", "Cascadia Code", Consolas, monospace'
+  };
+  const FONT_LABELS = { system: 'System', geist: 'Geist / Inter', serif: 'Serif', mono: 'Monospace' };
 
-  function applyAppearance(theme, density) {
-    document.documentElement.dataset.theme = theme;
-    document.documentElement.dataset.density = density;
-    document.querySelectorAll('[data-theme-choice]').forEach(button => {
-      button.setAttribute('aria-pressed', String(button.dataset.themeChoice === theme));
-    });
+  const root = document.documentElement;
+  const STORE_KEY = 'htmlnote-appearance';
+
+  function loadStore() {
+    let s = {};
+    try { s = JSON.parse(localStorage.getItem(STORE_KEY)) || {}; } catch {}
+    // Migrate legacy single-key storage.
+    if (!s.theme && localStorage.getItem('htmlnote-theme')) s.theme = localStorage.getItem('htmlnote-theme');
+    if (!s.density && localStorage.getItem('htmlnote-density')) s.density = localStorage.getItem('htmlnote-density');
+    s.props = s.props && typeof s.props === 'object' ? s.props : {};
+    return s;
+  }
+  let store = loadStore();
+
+  function persist() { localStorage.setItem(STORE_KEY, JSON.stringify(store)); }
+
+  function applyStore() {
+    const theme = store.theme || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+    root.dataset.theme = theme;
+    root.dataset.density = store.density || 'comfortable';
+    // Re-apply whitelisted overrides; ignore any prop not on the whitelist.
+    for (const [prop, val] of Object.entries(store.props)) {
+      if (ALLOWED_PROPS.has(prop)) root.style.setProperty(prop, val);
+    }
+    syncControls();
+  }
+
+  function setProp(prop, val) {
+    if (!ALLOWED_PROPS.has(prop)) return;
+    root.style.setProperty(prop, val);
+    store.props[prop] = val;
+    persist();
+  }
+
+  function setTheme(theme) { store.theme = theme; persist(); applyStore(); }
+  function setDensity(density) { store.density = density; persist(); applyStore(); }
+
+  function computed(prop) { return getComputedStyle(root).getPropertyValue(prop).trim(); }
+
+  function syncControls() {
+    const theme = root.dataset.theme;
+    const density = root.dataset.density;
+    document.querySelectorAll('[data-theme-choice]').forEach(b =>
+      b.setAttribute('aria-pressed', String(b.dataset.themeChoice === theme)));
+    document.querySelectorAll('[data-density-choice]').forEach(b =>
+      b.setAttribute('aria-pressed', String(b.dataset.densityChoice === density)));
     document.getElementById('density-toggle').setAttribute('aria-pressed', String(density === 'compact'));
   }
 
-  document.querySelectorAll('[data-theme-choice]').forEach(button => {
-    button.addEventListener('click', () => {
-      localStorage.setItem('htmlnote-theme', button.dataset.themeChoice);
-      applyAppearance(button.dataset.themeChoice, document.documentElement.dataset.density);
+  // ─── Panel wiring ───
+  const panel = document.getElementById('appearance-panel');
+
+  function initSelect(id, current) {
+    const sel = document.getElementById(id);
+    sel.innerHTML = '';
+    for (const [key, stack] of Object.entries(FONT_STACKS)) {
+      const opt = document.createElement('option');
+      opt.value = key;
+      opt.textContent = FONT_LABELS[key];
+      if (stack === current) opt.selected = true;
+      sel.appendChild(opt);
+    }
+  }
+
+  function syncPanel() {
+    // Reflect the live, resolved values (stylesheet defaults + any overrides).
+    const h = parseInt(computed('--accent-h')) || 220;
+    const s = parseInt(computed('--accent-s')) || 72;
+    const l = parseInt(computed('--accent-l')) || 48;
+    setRange('set-accent-h', 'out-accent-h', h, '°');
+    setRange('set-accent-s', 'out-accent-s', s, '%');
+    setRange('set-accent-l', 'out-accent-l', l, '%');
+    const size = parseInt(computed('--reading-font-size')) || 15;
+    setRange('set-reading-size', 'out-reading-size', size, 'px');
+    const radius = parseInt(computed('--radius-s')) || 4;
+    setRange('set-radius', 'out-radius', radius, 'px');
+    initSelect('set-font-interface', computed('--font-interface-theme'));
+    initSelect('set-font-text', computed('--font-text-theme'));
+  }
+
+  function setRange(inputId, outId, val, unit) {
+    document.getElementById(inputId).value = val;
+    document.getElementById(outId).textContent = val + unit;
+  }
+
+  function openPanel() { panel.classList.add('show'); syncPanel(); }
+  function closePanel() { panel.classList.remove('show'); }
+
+  document.getElementById('appearance-open').addEventListener('click', openPanel);
+  document.getElementById('appearance-close').addEventListener('click', closePanel);
+  panel.addEventListener('click', e => { if (e.target === panel) closePanel(); });
+
+  // Theme + density (header buttons and panel segments share the handlers).
+  document.querySelectorAll('[data-theme-choice]').forEach(b =>
+    b.addEventListener('click', () => setTheme(b.dataset.themeChoice)));
+  document.querySelectorAll('[data-density-choice]').forEach(b =>
+    b.addEventListener('click', () => setDensity(b.dataset.densityChoice)));
+  document.getElementById('density-toggle').addEventListener('click', () =>
+    setDensity(root.dataset.density === 'compact' ? 'comfortable' : 'compact'));
+
+  // Accent sliders.
+  bindRange('set-accent-h', 'out-accent-h', '°', v => setProp('--accent-h', String(v)));
+  bindRange('set-accent-s', 'out-accent-s', '%', v => setProp('--accent-s', v + '%'));
+  bindRange('set-accent-l', 'out-accent-l', '%', v => setProp('--accent-l', v + '%'));
+  bindRange('set-reading-size', 'out-reading-size', 'px', v => setProp('--reading-font-size', v + 'px'));
+  bindRange('set-radius', 'out-radius', 'px', v => {
+    setProp('--radius-s', v + 'px');
+    setProp('--radius-m', (v + 2) + 'px');
+    setProp('--radius-l', (v + 4) + 'px');
+  });
+
+  function bindRange(inputId, outId, unit, apply) {
+    const el = document.getElementById(inputId);
+    el.addEventListener('input', () => {
+      document.getElementById(outId).textContent = el.value + unit;
+      apply(el.value);
     });
+  }
+
+  document.getElementById('set-font-interface').addEventListener('change', e =>
+    setProp('--font-interface-theme', FONT_STACKS[e.target.value]));
+  document.getElementById('set-font-text').addEventListener('change', e =>
+    setProp('--font-text-theme', FONT_STACKS[e.target.value]));
+
+  document.getElementById('appearance-reset').addEventListener('click', () => {
+    for (const prop of store.props ? Object.keys(store.props) : []) root.style.removeProperty(prop);
+    store.props = {};
+    persist();
+    applyStore();
+    syncPanel();
   });
 
-  document.getElementById('density-toggle').addEventListener('click', () => {
-    const density = document.documentElement.dataset.density === 'compact' ? 'comfortable' : 'compact';
-    localStorage.setItem('htmlnote-density', density);
-    applyAppearance(document.documentElement.dataset.theme, density);
-  });
-
+  // ─── Init ───
+  applyStore();
   Promise.all([loadTree(), loadSeries()]);
 </script>
 

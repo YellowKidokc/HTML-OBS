@@ -256,15 +256,9 @@ const server = http.createServer((req, res) => {
   if (url.pathname === '/api/file') {
     const relPath = url.searchParams.get('path');
     if (!relPath) { res.writeHead(400); res.end('Missing path'); return; }
-<<<<<<< HEAD
-    const fullPath = path.resolve(ROOT, relPath);
-    // Security: prevent traversal
-    if (!fullPath.startsWith(ROOT + path.sep) && fullPath !== ROOT) { res.writeHead(403); res.end('Forbidden'); return; }
-=======
     const fullPath = resolveInRoot(relPath);
     // Security: prevent traversal
     if (!fullPath) { res.writeHead(403); res.end('Forbidden'); return; }
->>>>>>> b6d6842305185dc1683e66fe6ab4a17e4e6337b5
     if (!fs.existsSync(fullPath)) { res.writeHead(404); res.end('Not found'); return; }
 
     const ext = path.extname(fullPath).toLowerCase();
