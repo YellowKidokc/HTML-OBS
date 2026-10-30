@@ -4,14 +4,38 @@ const path = require('path');
 const { execSync } = require('child_process');
 
 // ─── Config ───
-const ROOT = process.argv[2] || 'D:\\faiththruphysics.com';
-const PORT = process.argv[3] || 3377;
+const ROOT = path.resolve(process.argv[2] || process.env.HTMLNOTE_ROOT || process.cwd());
+const PORT = process.argv[3] || process.env.HTMLNOTE_PORT || 3377;
 
 const NUMERIC_PREFIX = /^(\d+)[-_. ]+/;
 
 function readJson(file) {
   try { return JSON.parse(fs.readFileSync(file, 'utf8')); }
   catch { return {}; }
+}
+
+function resolveInRoot(relPath) {
+  const root = path.resolve(ROOT);
+  const target = path.resolve(root, relPath || '.');
+  if (target !== root && !target.startsWith(root + path.sep)) return null;
+  return target;
+}
+
+function readBody(req, callback) {
+  let body = '';
+  req.on('data', chunk => {
+    body += chunk;
+    if (body.length > 10 * 1024 * 1024) req.destroy();
+  });
+  req.on('end', () => {
+    try { callback(null, JSON.parse(body || '{}')); }
+    catch (error) { callback(error); }
+  });
+}
+
+function json(res, status, value) {
+  res.writeHead(status, { 'Content-Type': 'application/json; charset=utf-8' });
+  res.end(JSON.stringify(value));
 }
 
 function readHtmlNoteMetadata(file) {
@@ -148,9 +172,11 @@ function flattenTree(tree, result = []) {
 
 // ─── Rename file ───
 function renameFile(oldRel, newName) {
-  const oldFull = path.join(ROOT, oldRel);
+  const oldFull = path.resolve(ROOT, oldRel);
+  if (!oldFull.startsWith(ROOT + path.sep) && oldFull !== ROOT) return { error: 'Forbidden' };
   const dir = path.dirname(oldFull);
-  const newFull = path.join(dir, newName);
+  const newFull = path.resolve(dir, newName);
+  if (!newFull.startsWith(ROOT + path.sep) && newFull !== ROOT) return { error: 'Forbidden' };
   if (fs.existsSync(newFull)) return { error: 'Target already exists' };
   fs.renameSync(oldFull, newFull);
   return { ok: true, newPath: path.relative(ROOT, newFull).replace(/\\/g, '/') };
@@ -187,12 +213,52 @@ const server = http.createServer((req, res) => {
     return;
   }
 
+  if (url.pathname === '/api/series') {
+    const sidecar = path.join(path.resolve(ROOT), '_htmlnote.json');
+    if (req.method === 'GET') {
+      json(res, 200, { series: readJson(sidecar).series || {} });
+      return;
+    }
+    if (req.method === 'POST') {
+      readBody(req, (error, body) => {
+        if (error || !body.series || typeof body.series !== 'object' || Array.isArray(body.series)) {
+          json(res, 400, { error: 'Expected { series: {...} }' }); return;
+        }
+        try {
+          const metadata = readJson(sidecar);
+          metadata.series = body.series;
+          fs.writeFileSync(sidecar, JSON.stringify(metadata, null, 2) + '\n', 'utf8');
+          json(res, 200, { ok: true, series: metadata.series });
+        } catch (writeError) { json(res, 500, { error: writeError.message }); }
+      });
+      return;
+    }
+  }
+
+  if (url.pathname === '/api/save' && req.method === 'POST') {
+    readBody(req, (error, body) => {
+      const fullPath = !error && typeof body.path === 'string' ? resolveInRoot(body.path) : null;
+      if (error || !fullPath || typeof body.content !== 'string') {
+        json(res, 400, { error: 'Expected a safe path and string content' }); return;
+      }
+      if (!/\.html?$/i.test(fullPath)) { json(res, 415, { error: 'Only HTML files can be saved' }); return; }
+      if (!fs.existsSync(fullPath) || !fs.statSync(fullPath).isFile()) {
+        json(res, 404, { error: 'File not found' }); return;
+      }
+      try {
+        fs.writeFileSync(fullPath, body.content, 'utf8');
+        json(res, 200, { ok: true });
+      } catch (writeError) { json(res, 500, { error: writeError.message }); }
+    });
+    return;
+  }
+
   if (url.pathname === '/api/file') {
     const relPath = url.searchParams.get('path');
     if (!relPath) { res.writeHead(400); res.end('Missing path'); return; }
-    const fullPath = path.join(ROOT, relPath);
+    const fullPath = resolveInRoot(relPath);
     // Security: prevent traversal
-    if (!fullPath.startsWith(ROOT)) { res.writeHead(403); res.end('Forbidden'); return; }
+    if (!fullPath) { res.writeHead(403); res.end('Forbidden'); return; }
     if (!fs.existsSync(fullPath)) { res.writeHead(404); res.end('Not found'); return; }
 
     const ext = path.extname(fullPath).toLowerCase();

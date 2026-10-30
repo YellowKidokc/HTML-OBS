@@ -1,0 +1,33 @@
+<!-- Local Periodic / Atlas table. Same 15 marker positions per atom card. -->
+<meta charset="utf-8">
+<title>Local Atlas — {{ paper.title }}</title>
+<style>
+  body { font-family: system-ui, sans-serif; margin: 24px; background:#0f1115; color:#e6e6e6; }
+  h1 { font-size: 20px; }
+  .grid { display:flex; flex-wrap:wrap; gap:10px; }
+  .atom { width:150px; border:2px solid #333; border-radius:8px; padding:8px;
+          background:#1a1d24; cursor:default; }
+  .atom.contested { border-style:dashed; border-color:#c44e52; }
+  .atom .fn { font-size:10px; text-transform:uppercase; letter-spacing:.5px; color:#8fb; }
+  .atom .lbl { font-size:12px; margin:4px 0; }
+  .atom .id  { font-size:9px; color:#666; }
+  .badge { display:inline-block; font-size:9px; padding:1px 4px; border-radius:4px;
+           background:#2a2f3a; margin-right:3px; }
+  .ref-T { color:#e0b04a; } .ref-F { color:#7aa2f7; } .ref-N { color:#9ece6a; }
+</style>
+<h1>Local Atlas — {{ paper.title }}</h1>
+<p>{{ atoms|length }} atoms · paper {{ paper.paper_id }}</p>
+<div class="grid">
+{% for a in atoms %}
+  <div class="atom {{ 'contested' if a.dispute == 'contested' else '' }}">
+    <div class="fn">{{ a.function }}</div>
+    <div class="lbl">{{ a.label }}</div>
+    <div>
+      <span class="badge ref-{{ a.reference_architecture }}">{{ a.reference_architecture }}</span>
+      <span class="badge">{{ a.standing }}</span>
+      {% if a.frozen %}<span class="badge">frozen</span>{% endif %}
+    </div>
+    <div class="id">{{ a.atom_id }}</div>
+  </div>
+{% endfor %}
+</div>

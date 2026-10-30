@@ -5,6 +5,6 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "dev": "node server.js D:\\faiththruphysics.com 3377"
+    "dev": "node server.js . 3377"
   }
 }
